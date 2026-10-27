@@ -43,6 +43,8 @@ interface BrewFormProps {
   initialProductId?: string;
   /** Si viene, el formulario edita esa taza en vez de crear una nueva. */
   brew?: BrewView;
+  /** Lugares ya usados, para autocompletar. */
+  placeSuggestions?: string[];
 }
 
 interface Recipe {
@@ -124,7 +126,12 @@ function parseDecimal(value: string): number {
   return Number(value.trim().replace(",", "."));
 }
 
-export function BrewForm({ products, initialProductId, brew }: BrewFormProps) {
+export function BrewForm({
+  products,
+  initialProductId,
+  brew,
+  placeSuggestions = [],
+}: BrewFormProps) {
   const router = useRouter();
   const editing = brew !== undefined;
   const [state, formAction, pending] = useActionState(
@@ -291,11 +298,17 @@ export function BrewForm({ products, initialProductId, brew }: BrewFormProps) {
         >
           <input
             name="place"
+            list="brew-places"
             maxLength={120}
             placeholder="Ej.: Café Sorrento, Viña"
             defaultValue={brew?.place ?? ""}
             className={inputClass}
           />
+          <datalist id="brew-places">
+            {placeSuggestions.map((place) => (
+              <option key={place} value={place} />
+            ))}
+          </datalist>
         </Field>
         <Field
           label="Fecha y hora (opcional)"

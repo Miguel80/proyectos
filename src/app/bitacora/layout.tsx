@@ -50,6 +50,12 @@ export default async function BitacoraLayout({
               Historial
             </Link>
             <Link
+              href="/bitacora/resumen"
+              className="hover:text-stone-900 dark:hover:text-stone-100"
+            >
+              Resumen
+            </Link>
+            <Link
               href="/bitacora/nueva"
               className="hover:text-stone-900 dark:hover:text-stone-100"
             >

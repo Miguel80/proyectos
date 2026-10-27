@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrewForm, type ProductOption } from "@/components/brew-form";
+import { getPlaceSuggestions } from "@/services/insights.service";
 import { requireUserOrRedirect } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -25,7 +26,10 @@ export default async function EditBrewPage({ params }: EditBrewPageProps) {
   if (!raw) notFound();
 
   const [brew] = await attachPhotoUrls(db, [raw]);
-  const products = await getProducts(db, user.id);
+  const [products, placeSuggestions] = await Promise.all([
+    getProducts(db, user.id),
+    getPlaceSuggestions(db, user.id),
+  ]);
   if (!brew) notFound();
 
   const options: ProductOption[] = products.map(
@@ -47,7 +51,11 @@ export default async function EditBrewPage({ params }: EditBrewPageProps) {
           Editar taza
         </h1>
       </div>
-      <BrewForm products={options} brew={brew} />
+      <BrewForm
+        products={options}
+        brew={brew}
+        placeSuggestions={placeSuggestions}
+      />
     </main>
   );
 }

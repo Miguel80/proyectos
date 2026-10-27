@@ -61,13 +61,17 @@ export async function listBrews(
   db: DbClient,
   ownerId: string,
   limit: number,
+  since?: string,
 ): Promise<BrewWithRelations[]> {
-  const { data, error } = await db
+  let query = db
     .from("bitacora_brews")
     .select(
       "*, product:bitacora_products(id, name, kind), tasting:bitacora_tastings(*)",
     )
-    .eq("user_id", ownerId)
+    .eq("user_id", ownerId);
+  if (since) query = query.gte("brewed_at", since);
+
+  const { data, error } = await query
     .order("brewed_at", { ascending: false })
     .limit(limit);
 
@@ -290,4 +294,18 @@ export async function deleteTasting(
     .eq("brew_id", brewId);
 
   if (error) throw dbError("No se pudo actualizar la cata", error.code);
+}
+
+/** Lugares usados (con repeticiones), para sugerirlos en el formulario. */
+export async function listPlaces(db: DbClient, ownerId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from("bitacora_brews")
+    .select("place")
+    .eq("user_id", ownerId)
+    .not("place", "is", null)
+    .order("brewed_at", { ascending: false })
+    .limit(1000);
+
+  if (error) throw dbError("No se pudieron leer los lugares", error.code);
+  return data.flatMap((row) => (row.place ? [row.place] : []));
 }

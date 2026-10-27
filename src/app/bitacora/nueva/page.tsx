@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrewForm, type ProductOption } from "@/components/brew-form";
 import { cardClass } from "@/components/ui";
+import { getPlaceSuggestions } from "@/services/insights.service";
 import { requireUserOrRedirect } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getOverview, getProducts } from "@/services/bitacora.service";
@@ -16,9 +17,10 @@ export default async function NewBrewPage({ searchParams }: NewBrewPageProps) {
   const user = await requireUserOrRedirect();
   const { producto } = await searchParams;
   const db = await createClient();
-  const [products, overview] = await Promise.all([
+  const [products, overview, placeSuggestions] = await Promise.all([
     getProducts(db, user.id),
     getOverview(db, user.id),
+    getPlaceSuggestions(db, user.id),
   ]);
 
   // Última preparación por producto (las preparaciones vienen de la más reciente a la más antigua).
@@ -50,8 +52,8 @@ export default async function NewBrewPage({ searchParams }: NewBrewPageProps) {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Registrar taza</h1>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          Anota cómo la preparaste y cómo salió. Lo único obligatorio es el
-          producto, el método y las cantidades.
+          Anota cómo la preparaste y cómo salió. Lo único obligatorio es elegir
+          el producto.
         </p>
       </div>
       {products.length === 0 ? (
@@ -65,7 +67,11 @@ export default async function NewBrewPage({ searchParams }: NewBrewPageProps) {
           (el café o té que vas a preparar).
         </p>
       ) : (
-        <BrewForm products={options} initialProductId={producto} />
+        <BrewForm
+          products={options}
+          initialProductId={producto}
+          placeSuggestions={placeSuggestions}
+        />
       )}
     </main>
   );
