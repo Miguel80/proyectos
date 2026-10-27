@@ -1,0 +1,209 @@
+import type { User } from "@supabase/supabase-js";
+import { z } from "zod";
+import { KINDS, ROAST_LEVELS, TASTING_SCORES, TEA_TYPES } from "@/lib/bitacora/constants";
+import type { DbClient } from "@/repositories/notes.repository";
+import {
+  deleteBrew,
+  insertBrew,
+  insertProduct,
+  listBrews,
+  listProducts,
+  upsertTasting,
+  type BrewRow,
+  type BrewWithRelations,
+  type ProductRow,
+  type TastingInsert,
+} from "@/repositories/bitacora.repository";
+
+/**
+ * Lógica de negocio de la Bitácora Sensorial.
+ * Convierte FormData (todo texto) en datos validados y orquesta el repositorio.
+ */
+
+// --- Helpers de validación para formularios -------------------------------------------------
+
+const blankToUndefined = (value: unknown): unknown =>
+  value === "" || value === null || value === undefined ? undefined : value;
+
+const text = (max: number) =>
+  z.preprocess(blankToUndefined, z.string().trim().min(1).max(max).optional());
+
+const requiredText = (max: number, message: string) =>
+  z.string({ error: message }).trim().min(1, message).max(max);
+
+const number = (schema: z.ZodNumber) =>
+  z.preprocess((value) => {
+    const cleaned = blankToUndefined(value);
+    return cleaned === undefined ? undefined : Number(cleaned);
+  }, schema.optional());
+
+const requiredNumber = (schema: z.ZodNumber, message: string) =>
+  z.preprocess((value) => {
+    const cleaned = blankToUndefined(value);
+    return cleaned === undefined ? undefined : Number(cleaned);
+  }, schema.refine((n) => Number.isFinite(n), message));
+
+const score = number(z.number().int().min(1).max(5));
+
+const date = z.preprocess(blankToUndefined, z.iso.date().optional());
+
+const descriptors = z.preprocess(
+  (value) => {
+    const cleaned = blankToUndefined(value);
+    if (typeof cleaned !== "string") return [];
+    return cleaned
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  },
+  z.array(z.string().max(40)).max(20),
+);
+
+// --- Esquemas -------------------------------------------------------------------------------
+
+export const createProductSchema = z.object({
+  kind: z.enum(KINDS, { error: "Elige café o té" }),
+  name: requiredText(120, "El nombre es obligatorio"),
+  origin_country: text(80),
+  region: text(80),
+  producer: text(120),
+  variety: text(120),
+  process: text(120),
+  tea_type: z.preprocess(blankToUndefined, z.enum(TEA_TYPES).optional()),
+  roast_level: z.preprocess(blankToUndefined, z.enum(ROAST_LEVELS).optional()),
+  roast_date: date,
+  purchased_on: date,
+  supplier: text(120),
+  notes: text(2000),
+});
+
+export const logBrewSchema = z.object({
+  product_id: z.uuid({ error: "Elige un producto" }),
+  method: requiredText(60, "El método es obligatorio"),
+  dose_g: requiredNumber(z.number().positive().max(9999), "La dosis debe ser mayor a 0"),
+  water_g: requiredNumber(z.number().positive().max(99999), "El agua debe ser mayor a 0"),
+  water_temp_c: number(z.number().min(0).max(100)),
+  grind_setting: text(60),
+  steep_seconds: number(z.number().int().positive().max(86400)),
+  equipment: text(200),
+  water_notes: text(200),
+  rating: number(z.number().int().min(1).max(5)),
+  notes: text(2000),
+  aroma: score,
+  acidity: score,
+  body: score,
+  sweetness: score,
+  bitterness: score,
+  aftertaste: score,
+  balance: score,
+  descriptors,
+  tasting_notes: text(2000),
+});
+
+export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type LogBrewInput = z.infer<typeof logBrewSchema>;
+
+/** Convierte un FormData en un objeto plano para pasarlo a los esquemas. */
+export function formDataToObject(formData: FormData): Record<string, unknown> {
+  return Object.fromEntries(formData.entries());
+}
+
+// --- Casos de uso ---------------------------------------------------------------------------
+
+export async function getProducts(db: DbClient): Promise<ProductRow[]> {
+  return listProducts(db);
+}
+
+export async function createProduct(db: DbClient, user: User, input: unknown): Promise<ProductRow> {
+  const parsed = createProductSchema.parse(input);
+  const isCoffee = parsed.kind === "coffee";
+
+  return insertProduct(db, {
+    user_id: user.id,
+    kind: parsed.kind,
+    name: parsed.name,
+    origin_country: parsed.origin_country ?? null,
+    region: parsed.region ?? null,
+    producer: parsed.producer ?? null,
+    variety: parsed.variety ?? null,
+    process: parsed.process ?? null,
+    // Campos propios de cada tipo: se descartan los del otro.
+    tea_type: isCoffee ? null : (parsed.tea_type ?? null),
+    roast_level: isCoffee ? (parsed.roast_level ?? null) : null,
+    roast_date: isCoffee ? (parsed.roast_date ?? null) : null,
+    purchased_on: parsed.purchased_on ?? null,
+    supplier: parsed.supplier ?? null,
+    notes: parsed.notes ?? null,
+  });
+}
+
+export async function logBrew(db: DbClient, user: User, input: unknown): Promise<BrewRow> {
+  const parsed = logBrewSchema.parse(input);
+
+  const brew = await insertBrew(db, {
+    user_id: user.id,
+    product_id: parsed.product_id,
+    method: parsed.method,
+    dose_g: parsed.dose_g,
+    water_g: parsed.water_g,
+    water_temp_c: parsed.water_temp_c ?? null,
+    grind_setting: parsed.grind_setting ?? null,
+    steep_seconds: parsed.steep_seconds ?? null,
+    equipment: parsed.equipment ?? null,
+    water_notes: parsed.water_notes ?? null,
+    rating: parsed.rating ?? null,
+    notes: parsed.notes ?? null,
+  });
+
+  const tasting: TastingInsert = {
+    user_id: user.id,
+    brew_id: brew.id,
+    descriptors: parsed.descriptors,
+    notes: parsed.tasting_notes ?? null,
+  };
+  let hasTasting = parsed.descriptors.length > 0 || parsed.tasting_notes !== undefined;
+
+  for (const { key } of TASTING_SCORES) {
+    const value = parsed[key];
+    if (value !== undefined) {
+      tasting[key] = value;
+      hasTasting = true;
+    }
+  }
+
+  if (hasTasting) {
+    await upsertTasting(db, tasting);
+  }
+
+  return brew;
+}
+
+export async function removeBrew(db: DbClient, id: unknown): Promise<void> {
+  const brewId = z.uuid().parse(id);
+  await deleteBrew(db, brewId);
+}
+
+export interface BitacoraOverview {
+  brews: BrewWithRelations[];
+  stats: {
+    shown: number;
+    averageRating: number | null;
+    lastBrewAt: string | null;
+  };
+}
+
+const OVERVIEW_LIMIT = 50;
+
+export async function getOverview(db: DbClient): Promise<BitacoraOverview> {
+  const brews = await listBrews(db, OVERVIEW_LIMIT);
+  const rated = brews.flatMap((brew) => (brew.rating === null ? [] : [brew.rating]));
+
+  return {
+    brews,
+    stats: {
+      shown: brews.length,
+      averageRating: rated.length > 0 ? rated.reduce((sum, n) => sum + n, 0) / rated.length : null,
+      lastBrewAt: brews[0]?.brewed_at ?? null,
+    },
+  };
+}

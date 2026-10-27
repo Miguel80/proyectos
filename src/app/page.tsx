@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-4 px-6">
@@ -7,6 +9,12 @@ export default function HomePage() {
         GitHub Template.
       </p>
       <ul className="list-inside list-disc text-sm text-stone-600 dark:text-stone-400">
+        <li>
+          <Link href="/bitacora" className="underline">
+            Bitácora Sensorial
+          </Link>{" "}
+          (café y té): requiere iniciar sesión
+        </li>
         <li>
           Estado de configuración: <code>/api/health</code>
         </li>
