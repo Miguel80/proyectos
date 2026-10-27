@@ -13,7 +13,11 @@ import {
 /** Compartir cuadernos: invitación por correo, aceptación del invitado y acceso de solo lectura. */
 
 const inviteSchema = z.object({
-  email: z.string({ error: "Escribe un correo" }).trim().toLowerCase().pipe(z.email({ error: "Correo no válido" })),
+  email: z
+    .string({ error: "Escribe un correo" })
+    .trim()
+    .toLowerCase()
+    .pipe(z.email({ error: "Correo no válido" })),
 });
 
 const idSchema = z.uuid();
@@ -27,22 +31,35 @@ export interface SharingOverview {
   shared: ShareRow[];
 }
 
-export async function getSharingOverview(db: DbClient, user: User): Promise<SharingOverview> {
+export async function getSharingOverview(
+  db: DbClient,
+  user: User,
+): Promise<SharingOverview> {
   const email = (user.email ?? "").toLowerCase();
   const rows = await listShares(db);
 
   return {
     sent: rows.filter((row) => row.owner_id === user.id),
     incoming: rows.filter(
-      (row) => row.owner_id !== user.id && row.status === "pending" && row.recipient_email === email,
+      (row) =>
+        row.owner_id !== user.id &&
+        row.status === "pending" &&
+        row.recipient_email === email,
     ),
     shared: rows.filter(
-      (row) => row.owner_id !== user.id && row.status === "accepted" && row.recipient_id === user.id,
+      (row) =>
+        row.owner_id !== user.id &&
+        row.status === "accepted" &&
+        row.recipient_id === user.id,
     ),
   };
 }
 
-export async function invite(db: DbClient, user: User, input: unknown): Promise<ShareRow> {
+export async function invite(
+  db: DbClient,
+  user: User,
+  input: unknown,
+): Promise<ShareRow> {
   const { email } = inviteSchema.parse(input);
   const ownEmail = (user.email ?? "").toLowerCase();
 
@@ -53,7 +70,11 @@ export async function invite(db: DbClient, user: User, input: unknown): Promise<
     throw new AppError("BAD_REQUEST", "No puedes invitarte a ti mismo", 400);
   }
 
-  return insertShare(db, { owner_id: user.id, owner_email: ownEmail, recipient_email: email });
+  return insertShare(db, {
+    owner_id: user.id,
+    owner_email: ownEmail,
+    recipient_email: email,
+  });
 }
 
 export async function accept(db: DbClient, id: unknown): Promise<void> {
@@ -66,7 +87,11 @@ export async function remove(db: DbClient, id: unknown): Promise<void> {
 }
 
 /** Devuelve la invitación aceptada que da acceso al cuaderno de `ownerId`, o null. */
-export async function findAcceptedShare(db: DbClient, user: User, ownerId: string): Promise<ShareRow | null> {
+export async function findAcceptedShare(
+  db: DbClient,
+  user: User,
+  ownerId: string,
+): Promise<ShareRow | null> {
   const { shared } = await getSharingOverview(db, user);
   return shared.find((row) => row.owner_id === ownerId) ?? null;
 }

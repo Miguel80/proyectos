@@ -8,7 +8,9 @@ import { createNote } from "@/services/notes.service";
 import type { NoteRow } from "@/repositories/notes.repository";
 
 /** Server Action: capa delgada que valida sesión, delega al servicio y devuelve JSON estándar. */
-export async function createNoteAction(formData: FormData): Promise<ApiResult<NoteRow>> {
+export async function createNoteAction(
+  formData: FormData,
+): Promise<ApiResult<NoteRow>> {
   try {
     const user = await requireUser();
     const db = await createClient();

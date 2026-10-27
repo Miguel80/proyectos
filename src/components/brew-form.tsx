@@ -8,7 +8,7 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
-import { logBrewAction } from "@/actions/bitacora.actions";
+import { logBrewAction, updateBrewAction } from "@/actions/bitacora.actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import {
   BREW_METHOD_SUGGESTIONS,
@@ -17,6 +17,7 @@ import {
   isKind,
 } from "@/lib/bitacora/constants";
 import { formatDuration, formatNumber } from "@/lib/bitacora/format";
+import type { BrewView } from "@/services/bitacora.service";
 
 export interface LastRecipe {
   method: string;
@@ -40,6 +41,8 @@ export interface ProductOption {
 interface BrewFormProps {
   products: ProductOption[];
   initialProductId?: string;
+  /** Si viene, el formulario edita esa taza en vez de crear una nueva. */
+  brew?: BrewView;
 }
 
 interface Recipe {
@@ -109,23 +112,57 @@ async function compressImage(file: File): Promise<File> {
   }
 }
 
+/** ISO -> valor para <input type="datetime-local"> en la hora del navegador. */
+function toLocalInputValue(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function parseDecimal(value: string): number {
   return Number(value.trim().replace(",", "."));
 }
 
-export function BrewForm({ products, initialProductId }: BrewFormProps) {
+export function BrewForm({ products, initialProductId, brew }: BrewFormProps) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState(logBrewAction, null);
+  const editing = brew !== undefined;
+  const [state, formAction, pending] = useActionState(
+    editing ? updateBrewAction : logBrewAction,
+    null,
+  );
 
-  const initial =
-    products.find((product) => product.id === initialProductId) ??
-    (products.length === 1 ? products[0] : undefined);
+  const initial = editing
+    ? undefined
+    : (products.find((product) => product.id === initialProductId) ??
+      (products.length === 1 ? products[0] : undefined));
 
-  const [productId, setProductId] = useState(initial?.id ?? "");
+  const [productId, setProductId] = useState(
+    brew?.product_id ?? initial?.id ?? "",
+  );
   const [recipe, setRecipe] = useState<Recipe>(() =>
-    recipeFrom(initial?.last ?? null),
+    brew ? recipeFrom(brew) : recipeFrom(initial?.last ?? null),
   );
   const [prefilled, setPrefilled] = useState(Boolean(initial?.last));
+
+  // Fecha y hora: el valor visible es local; el que viaja al servidor es ISO (con zona horaria).
+  const [brewedLocal, setBrewedLocal] = useState("");
+  const [brewedIso, setBrewedIso] = useState(brew?.brewed_at ?? "");
+  const [removePhoto, setRemovePhoto] = useState(false);
+
+  useEffect(() => {
+    // Se calcula tras montar para no desajustar la hidratación con la zona horaria del servidor.
+    if (brew) setBrewedLocal(toLocalInputValue(brew.brewed_at));
+  }, [brew]);
+
+  function handleBrewedChange(event: ChangeEvent<HTMLInputElement>) {
+    const value = event.target.value;
+    setBrewedLocal(value);
+    const date = new Date(value);
+    setBrewedIso(
+      value === "" || Number.isNaN(date.getTime()) ? "" : date.toISOString(),
+    );
+  }
 
   const photoInput = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -184,6 +221,7 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
     const id = event.target.value;
     const next = products.find((product) => product.id === id);
     setProductId(id);
+    if (editing) return; // al editar no se pisa la receta guardada
     setRecipe(recipeFrom(next?.last ?? null));
     setPrefilled(Boolean(next?.last));
   }
@@ -199,6 +237,8 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
 
   return (
     <form action={formAction} className="space-y-6">
+      {brew ? <input type="hidden" name="id" value={brew.id} /> : null}
+      <input type="hidden" name="brewed_at" value={brewedIso} />
       <fieldset className="space-y-4">
         <legend className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
           1 · Qué preparaste
@@ -253,11 +293,49 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
             name="place"
             maxLength={120}
             placeholder="Ej.: Café Sorrento, Viña"
+            defaultValue={brew?.place ?? ""}
             className={inputClass}
           />
         </Field>
         <Field
-          label="Foto (opcional)"
+          label="Fecha y hora (opcional)"
+          hint={
+            editing
+              ? "Cámbiala si la registraste otro día"
+              : "Si la dejas vacía se usa ahora mismo"
+          }
+        >
+          <input
+            type="datetime-local"
+            value={brewedLocal}
+            onChange={handleBrewedChange}
+            className={inputClass}
+          />
+        </Field>
+        {brew?.photoUrl ? (
+          <div className="flex items-end gap-3">
+            {/* URL firmada y temporal de Supabase Storage. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={brew.photoUrl}
+              alt="Foto actual"
+              className={`h-28 rounded-md object-cover ${removePhoto ? "opacity-40" : ""}`}
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="remove_photo"
+                checked={removePhoto}
+                onChange={(event) => setRemovePhoto(event.target.checked)}
+              />
+              Quitar la foto actual
+            </label>
+          </div>
+        ) : null}
+        <Field
+          label={
+            brew?.photoUrl ? "Reemplazar foto (opcional)" : "Foto (opcional)"
+          }
           hint="Del café, del paquete o del lugar. Se reduce sola antes de subirla."
         >
           <input
@@ -403,7 +481,11 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
           3 · Cómo salió
         </legend>
         <Field label="Valoración general">
-          <select name="rating" defaultValue="" className={inputClass}>
+          <select
+            name="rating"
+            defaultValue={brew?.rating ?? ""}
+            className={inputClass}
+          >
             <option value="">Sin valorar</option>
             {SCORE_OPTIONS.map((value) => (
               <option key={value} value={value}>
@@ -417,11 +499,15 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
             name="notes"
             rows={2}
             maxLength={2000}
+            defaultValue={brew?.notes ?? ""}
             className={inputClass}
           />
         </Field>
 
-        <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+        <details
+          open={Boolean(brew?.tasting)}
+          className="rounded-lg border border-stone-200 p-4 dark:border-stone-800"
+        >
           <summary className="cursor-pointer text-sm font-medium">
             Cata detallada (opcional)
           </summary>
@@ -432,7 +518,11 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
             <div className="grid gap-4 sm:grid-cols-4">
               {TASTING_SCORES.map(({ key, label }) => (
                 <Field key={key} label={label}>
-                  <select name={key} defaultValue="" className={inputClass}>
+                  <select
+                    name={key}
+                    defaultValue={brew?.tasting?.[key] ?? ""}
+                    className={inputClass}
+                  >
                     <option value="">—</option>
                     {SCORE_OPTIONS.map((value) => (
                       <option key={value} value={value}>
@@ -447,13 +537,18 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
               label="Sabores que notaste"
               hint="Separados por coma: chocolate, caramelo, cítrico"
             >
-              <input name="descriptors" className={inputClass} />
+              <input
+                name="descriptors"
+                defaultValue={brew?.tasting?.descriptors.join(", ") ?? ""}
+                className={inputClass}
+              />
             </Field>
             <Field label="Notas de cata">
               <textarea
                 name="tasting_notes"
                 rows={2}
                 maxLength={2000}
+                defaultValue={brew?.tasting?.notes ?? ""}
                 className={inputClass}
               />
             </Field>
@@ -461,9 +556,12 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
         </details>
       </fieldset>
 
-      <FormMessage state={state} successText="Taza registrada." />
+      <FormMessage
+        state={state}
+        successText={editing ? "Cambios guardados." : "Taza registrada."}
+      />
       <button type="submit" disabled={pending} className={buttonClass}>
-        {pending ? "Guardando…" : "Guardar taza"}
+        {pending ? "Guardando…" : editing ? "Guardar cambios" : "Guardar taza"}
       </button>
     </form>
   );

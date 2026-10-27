@@ -110,6 +110,12 @@ export function BrewCard({ brew, readOnly = false }: BrewCardProps) {
               Repetir
             </Link>
           ) : null}
+          <Link
+            href={`/bitacora/editar/${brew.id}`}
+            className={secondaryButtonClass}
+          >
+            Editar
+          </Link>
           <form action={deleteBrewAction}>
             <input type="hidden" name="id" value={brew.id} />
             <button type="submit" className={secondaryButtonClass}>

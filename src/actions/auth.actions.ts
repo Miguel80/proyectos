@@ -22,9 +22,16 @@ export async function signInAction(
     });
 
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) {
-      throw new AppError("INVALID_CREDENTIALS", "Correo o contraseña incorrectos", 401);
+      throw new AppError(
+        "INVALID_CREDENTIALS",
+        "Correo o contraseña incorrectos",
+        401,
+      );
     }
 
     return ok(null);

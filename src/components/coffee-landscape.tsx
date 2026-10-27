@@ -47,8 +47,14 @@ export function CoffeeLandscape() {
       <rect y="480" width="1200" height="140" fill="url(#cl-mist)" />
 
       {/* Colinas con cafetales en terrazas */}
-      <path d="M0 610 C200 550 360 600 560 575 C760 550 960 600 1200 560 L1200 800 L0 800 Z" fill="#3a4a2c" />
-      <path d="M0 690 C220 630 420 690 640 655 C860 620 1020 680 1200 640 L1200 800 L0 800 Z" fill="#2c3b22" />
+      <path
+        d="M0 610 C200 550 360 600 560 575 C760 550 960 600 1200 560 L1200 800 L0 800 Z"
+        fill="#3a4a2c"
+      />
+      <path
+        d="M0 690 C220 630 420 690 640 655 C860 620 1020 680 1200 640 L1200 800 L0 800 Z"
+        fill="#2c3b22"
+      />
       {rows.map((i) => {
         const y = 640 + i * 18;
         return (
@@ -67,7 +73,13 @@ export function CoffeeLandscape() {
 
       {/* Rama de cafeto en primer plano */}
       <g transform="translate(-20 560) rotate(-8)">
-        <path d="M0 220 C140 160 260 120 420 110" fill="none" stroke="#1d2a17" strokeWidth="7" strokeLinecap="round" />
+        <path
+          d="M0 220 C140 160 260 120 420 110"
+          fill="none"
+          stroke="#1d2a17"
+          strokeWidth="7"
+          strokeLinecap="round"
+        />
         {[
           [90, 160, -25],
           [170, 130, 20],
@@ -95,7 +107,13 @@ export function CoffeeLandscape() {
           [292, 128],
           [284, 142],
         ].map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r="8" fill={i % 3 === 0 ? "#d9a03a" : "#b3262e"} />
+          <circle
+            key={i}
+            cx={x}
+            cy={y}
+            r="8"
+            fill={i % 3 === 0 ? "#d9a03a" : "#b3262e"}
+          />
         ))}
       </g>
     </svg>

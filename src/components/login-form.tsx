@@ -19,7 +19,13 @@ export function LoginForm() {
   return (
     <form action={formAction} className="space-y-4">
       <Field label="Correo">
-        <input name="email" type="email" required autoComplete="email" className={inputClass} />
+        <input
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className={inputClass}
+        />
       </Field>
       <Field label="Contraseña">
         <input
@@ -31,7 +37,11 @@ export function LoginForm() {
         />
       </Field>
       {state && !state.ok ? <FormMessage state={state} successText="" /> : null}
-      <button type="submit" disabled={pending} className={`${buttonClass} w-full`}>
+      <button
+        type="submit"
+        disabled={pending}
+        className={`${buttonClass} w-full`}
+      >
         {pending ? "Entrando…" : "Entrar"}
       </button>
     </form>

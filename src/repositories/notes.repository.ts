@@ -17,13 +17,23 @@ export async function listNotes(db: DbClient): Promise<NoteRow[]> {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) throw new AppError("DB_ERROR", "No se pudieron leer las notas", 500, error.code);
+  if (error)
+    throw new AppError(
+      "DB_ERROR",
+      "No se pudieron leer las notas",
+      500,
+      error.code,
+    );
   return data;
 }
 
-export async function insertNote(db: DbClient, note: NoteInsert): Promise<NoteRow> {
+export async function insertNote(
+  db: DbClient,
+  note: NoteInsert,
+): Promise<NoteRow> {
   const { data, error } = await db.from("notes").insert(note).select().single();
 
-  if (error) throw new AppError("DB_ERROR", "No se pudo crear la nota", 500, error.code);
+  if (error)
+    throw new AppError("DB_ERROR", "No se pudo crear la nota", 500, error.code);
   return data;
 }

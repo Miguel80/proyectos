@@ -15,7 +15,10 @@ import {
 } from "@/lib/bitacora/constants";
 
 export function ProductForm() {
-  const [state, formAction, pending] = useActionState(createProductAction, null);
+  const [state, formAction, pending] = useActionState(
+    createProductAction,
+    null,
+  );
   const [kind, setKind] = useState<Kind>("coffee");
 
   return (
@@ -38,22 +41,33 @@ export function ProductForm() {
             ))}
           </select>
         </Field>
-        <Field label="Nombre" hint="Como lo reconoces: marca, origen o nombre del paquete">
+        <Field
+          label="Nombre"
+          hint="Como lo reconoces: marca, origen o nombre del paquete"
+        >
           <input
             name="name"
             required
             maxLength={120}
-            placeholder={kind === "coffee" ? "Ej.: Café 3 Corações" : "Ej.: Dian Hong"}
+            placeholder={
+              kind === "coffee" ? "Ej.: Café 3 Corações" : "Ej.: Dian Hong"
+            }
             className={inputClass}
           />
         </Field>
       </div>
 
       <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-        <summary className="cursor-pointer text-sm font-medium">Más detalles (opcional)</summary>
+        <summary className="cursor-pointer text-sm font-medium">
+          Más detalles (opcional)
+        </summary>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="País de origen">
-            <input name="origin_country" maxLength={80} className={inputClass} />
+            <input
+              name="origin_country"
+              maxLength={80}
+              className={inputClass}
+            />
           </Field>
           <Field label="Región">
             <input name="region" maxLength={80} className={inputClass} />
@@ -64,7 +78,13 @@ export function ProductForm() {
           <Field label={kind === "coffee" ? "Variedad" : "Cultivar"}>
             <input name="variety" maxLength={120} className={inputClass} />
           </Field>
-          <Field label={kind === "coffee" ? "Proceso (lavado, natural…)" : "Oxidación o procesado"}>
+          <Field
+            label={
+              kind === "coffee"
+                ? "Proceso (lavado, natural…)"
+                : "Oxidación o procesado"
+            }
+          >
             <input name="process" maxLength={120} className={inputClass} />
           </Field>
           {kind === "tea" ? (
@@ -81,7 +101,11 @@ export function ProductForm() {
           ) : (
             <>
               <Field label="Nivel de tueste">
-                <select name="roast_level" defaultValue="" className={inputClass}>
+                <select
+                  name="roast_level"
+                  defaultValue=""
+                  className={inputClass}
+                >
                   <option value="">—</option>
                   {ROAST_LEVELS.map((value) => (
                     <option key={value} value={value}>
@@ -104,7 +128,12 @@ export function ProductForm() {
         </div>
         <div className="mt-4">
           <Field label="Notas">
-            <textarea name="notes" rows={2} maxLength={2000} className={inputClass} />
+            <textarea
+              name="notes"
+              rows={2}
+              maxLength={2000}
+              className={inputClass}
+            />
           </Field>
         </div>
       </details>

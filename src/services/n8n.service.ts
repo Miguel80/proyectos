@@ -17,7 +17,10 @@ export interface N8nEventPayload {
  * Dispara un workflow de n8n cuyo nodo Webhook usa `path`.
  * Ej.: triggerWorkflow("template-ping", { event: "note.created", payload: { id } })
  */
-export async function triggerWorkflow(path: string, body: N8nEventPayload): Promise<unknown> {
+export async function triggerWorkflow(
+  path: string,
+  body: N8nEventPayload,
+): Promise<unknown> {
   const env = getN8nEnv();
   const base = env.N8N_WEBHOOK_BASE_URL.replace(/\/+$/, "");
   const url = `${base}/${encodeURIComponent(path)}`;

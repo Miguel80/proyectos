@@ -24,7 +24,11 @@ export async function getNotes(db: DbClient): Promise<NoteRow[]> {
   return listNotes(db);
 }
 
-export async function createNote(db: DbClient, user: User, input: unknown): Promise<NoteRow> {
+export async function createNote(
+  db: DbClient,
+  user: User,
+  input: unknown,
+): Promise<NoteRow> {
   const parsed = createNoteSchema.parse(input);
 
   const note = await insertNote(db, {

@@ -10,6 +10,7 @@ import {
   formDataToObject,
   logBrew,
   removeBrew,
+  updateBrew,
 } from "@/services/bitacora.service";
 
 /** Server Actions de la Bitácora: validan sesión, delegan al servicio y devuelven JSON estándar. */
@@ -55,5 +56,21 @@ export async function deleteBrewAction(formData: FormData): Promise<void> {
     revalidatePath("/bitacora", "layout");
   } catch (error) {
     toFailure(error);
+  }
+}
+
+export async function updateBrewAction(
+  _previous: ApiResult<BrewRow> | null,
+  formData: FormData,
+): Promise<ApiResult<BrewRow>> {
+  try {
+    const user = await requireUser();
+    const db = await createClient();
+    const brew = await updateBrew(db, user, formDataToObject(formData));
+
+    revalidatePath("/bitacora", "layout");
+    return ok(brew);
+  } catch (error) {
+    return toFailure(error).failure;
   }
 }

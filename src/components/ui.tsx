@@ -22,19 +22,26 @@ interface FieldProps {
 export function Field({ label, hint, children }: FieldProps) {
   return (
     <label className="block space-y-1">
-      <span className="text-sm font-medium text-stone-700 dark:text-stone-300">{label}</span>
+      <span className="text-sm font-medium text-stone-700 dark:text-stone-300">
+        {label}
+      </span>
       {children}
-      {hint ? <span className="block text-xs text-stone-500">{hint}</span> : null}
+      {hint ? (
+        <span className="block text-xs text-stone-500">{hint}</span>
+      ) : null}
     </label>
   );
 }
 
 function detailMessages(details: unknown): string[] {
   if (!details || typeof details !== "object") return [];
-  return Object.entries(details as Record<string, unknown>).flatMap(([field, value]) =>
-    Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === "string").map((m) => `${field}: ${m}`)
-      : [],
+  return Object.entries(details as Record<string, unknown>).flatMap(
+    ([field, value]) =>
+      Array.isArray(value)
+        ? value
+            .filter((item): item is string => typeof item === "string")
+            .map((m) => `${field}: ${m}`)
+        : [],
   );
 }
 
@@ -49,7 +56,10 @@ export function FormMessage({ state, successText }: FormMessageProps) {
 
   if (state.ok) {
     return (
-      <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+      <p
+        role="status"
+        className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+      >
         {successText}
       </p>
     );
@@ -57,7 +67,10 @@ export function FormMessage({ state, successText }: FormMessageProps) {
 
   const extra = detailMessages(state.error.details);
   return (
-    <div role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
+    <div
+      role="alert"
+      className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
+    >
       <p>{state.error.message}</p>
       {extra.length > 0 ? (
         <ul className="mt-1 list-inside list-disc text-xs">

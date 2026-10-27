@@ -9,7 +9,10 @@ export function InviteForm() {
 
   return (
     <form action={formAction} className="space-y-3">
-      <Field label="Correo de la persona" hint="Debe usar este mismo correo para entrar a la Bitácora">
+      <Field
+        label="Correo de la persona"
+        hint="Debe usar este mismo correo para entrar a la Bitácora"
+      >
         <input
           name="email"
           type="email"
@@ -19,7 +22,10 @@ export function InviteForm() {
           className={inputClass}
         />
       </Field>
-      <FormMessage state={state} successText="Invitación enviada. Quedará pendiente hasta que la acepte." />
+      <FormMessage
+        state={state}
+        successText="Invitación enviada. Quedará pendiente hasta que la acepte."
+      />
       <button type="submit" disabled={pending} className={buttonClass}>
         {pending ? "Enviando…" : "Invitar"}
       </button>
