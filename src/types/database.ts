@@ -136,6 +136,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      bitacora_shares: {
+        Row: {
+          accepted_at: string | null;
+          created_at: string;
+          id: string;
+          owner_email: string;
+          owner_id: string;
+          recipient_email: string;
+          recipient_id: string | null;
+          status: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          created_at?: string;
+          id?: string;
+          owner_email: string;
+          owner_id?: string;
+          recipient_email: string;
+          recipient_id?: string | null;
+          status?: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          created_at?: string;
+          id?: string;
+          owner_email?: string;
+          owner_id?: string;
+          recipient_email?: string;
+          recipient_id?: string | null;
+          status?: string;
+        };
+        Relationships: [];
+      };
       bitacora_tastings: {
         Row: {
           acidity: number | null;
@@ -218,7 +251,16 @@ export type Database = {
       };
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      bitacora_accept_share: {
+        Args: { share_id: string };
+        Returns: undefined;
+      };
+      bitacora_can_view: {
+        Args: { owner: string };
+        Returns: boolean;
+      };
+    };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };

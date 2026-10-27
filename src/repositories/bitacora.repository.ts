@@ -25,10 +25,15 @@ function dbError(message: string, code: string | undefined): AppError {
   return new AppError("DB_ERROR", message, 500, code);
 }
 
-export async function listProducts(db: DbClient): Promise<ProductRow[]> {
+/**
+ * Ojo: con cuadernos compartidos las políticas RLS también permiten LEER filas de otros usuarios,
+ * por eso toda lectura filtra explícitamente por el dueño.
+ */
+export async function listProducts(db: DbClient, ownerId: string): Promise<ProductRow[]> {
   const { data, error } = await db
     .from("bitacora_products")
     .select("*")
+    .eq("user_id", ownerId)
     .order("created_at", { ascending: false });
 
   if (error) throw dbError("No se pudieron leer los productos", error.code);
@@ -42,10 +47,11 @@ export async function insertProduct(db: DbClient, input: ProductInsert): Promise
   return data;
 }
 
-export async function listBrews(db: DbClient, limit: number): Promise<BrewWithRelations[]> {
+export async function listBrews(db: DbClient, ownerId: string, limit: number): Promise<BrewWithRelations[]> {
   const { data, error } = await db
     .from("bitacora_brews")
     .select("*, product:bitacora_products(id, name, kind), tasting:bitacora_tastings(*)")
+    .eq("user_id", ownerId)
     .order("brewed_at", { ascending: false })
     .limit(limit);
 
@@ -75,4 +81,48 @@ export async function deleteBrew(db: DbClient, id: string): Promise<void> {
   const { error } = await db.from("bitacora_brews").delete().eq("id", id);
 
   if (error) throw dbError("No se pudo eliminar la preparación", error.code);
+}
+
+export type ShareRow = Tables["bitacora_shares"]["Row"];
+
+export async function listShares(db: DbClient): Promise<ShareRow[]> {
+  const { data, error } = await db
+    .from("bitacora_shares")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw dbError("No se pudieron leer las invitaciones", error.code);
+  return data;
+}
+
+export async function insertShare(
+  db: DbClient,
+  input: Tables["bitacora_shares"]["Insert"],
+): Promise<ShareRow> {
+  const { data, error } = await db.from("bitacora_shares").insert(input).select().single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new AppError("CONFLICT", "Ya invitaste a esa persona", 409, error.code);
+    }
+    throw dbError("No se pudo crear la invitación", error.code);
+  }
+  return data;
+}
+
+export async function acceptShare(db: DbClient, id: string): Promise<void> {
+  const { error } = await db.rpc("bitacora_accept_share", { share_id: id });
+
+  if (error) {
+    if (error.code === "P0002") {
+      throw new AppError("NOT_FOUND", "La invitación ya no existe", 404, error.code);
+    }
+    throw dbError("No se pudo aceptar la invitación", error.code);
+  }
+}
+
+export async function deleteShare(db: DbClient, id: string): Promise<void> {
+  const { error } = await db.from("bitacora_shares").delete().eq("id", id);
+
+  if (error) throw dbError("No se pudo eliminar la invitación", error.code);
 }

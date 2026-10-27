@@ -13,10 +13,13 @@ interface NewBrewPageProps {
 }
 
 export default async function NewBrewPage({ searchParams }: NewBrewPageProps) {
-  await requireUserOrRedirect();
+  const user = await requireUserOrRedirect();
   const { producto } = await searchParams;
   const db = await createClient();
-  const [products, overview] = await Promise.all([getProducts(db), getOverview(db)]);
+  const [products, overview] = await Promise.all([
+    getProducts(db, user.id),
+    getOverview(db, user.id),
+  ]);
 
   // Última preparación por producto (las preparaciones vienen de la más reciente a la más antigua).
   const lastByProduct = new Map<string, ProductOption["last"]>();
@@ -47,11 +50,14 @@ export default async function NewBrewPage({ searchParams }: NewBrewPageProps) {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Registrar taza</h1>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          Anota cómo la preparaste y cómo salió. Lo único obligatorio es el producto, el método y las cantidades.
+          Anota cómo la preparaste y cómo salió. Lo único obligatorio es el
+          producto, el método y las cantidades.
         </p>
       </div>
       {products.length === 0 ? (
-        <p className={`${cardClass} text-sm text-stone-600 dark:text-stone-400`}>
+        <p
+          className={`${cardClass} text-sm text-stone-600 dark:text-stone-400`}
+        >
           Primero agrega un{" "}
           <Link href="/bitacora/productos" className="underline">
             producto

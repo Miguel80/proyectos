@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Productos · Bitácora Sensorial" };
 
 export default async function ProductsPage() {
-  await requireUserOrRedirect();
+  const user = await requireUserOrRedirect();
   const db = await createClient();
-  const products = await getProducts(db);
+  const products = await getProducts(db, user.id);
 
   return (
     <main className="space-y-8">
@@ -23,7 +23,9 @@ export default async function ProductsPage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">Tus productos</h2>
         {products.length === 0 ? (
-          <p className="text-sm text-stone-600 dark:text-stone-400">Todavía no hay productos.</p>
+          <p className="text-sm text-stone-600 dark:text-stone-400">
+            Todavía no hay productos.
+          </p>
         ) : (
           <ul className="space-y-2">
             {products.map((product) => (
@@ -31,11 +33,18 @@ export default async function ProductsPage() {
                 <p className="font-medium">
                   {product.name}{" "}
                   <span className="text-xs font-normal text-stone-500">
-                    {isKind(product.kind) ? KIND_LABEL[product.kind] : product.kind}
+                    {isKind(product.kind)
+                      ? KIND_LABEL[product.kind]
+                      : product.kind}
                   </span>
                 </p>
                 <p className="text-sm text-stone-600 dark:text-stone-400">
-                  {[product.origin_country, product.region, product.variety, product.process]
+                  {[
+                    product.origin_country,
+                    product.region,
+                    product.variety,
+                    product.process,
+                  ]
                     .filter(Boolean)
                     .join(" · ") || "Sin detalles"}
                 </p>

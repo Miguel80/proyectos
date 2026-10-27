@@ -122,8 +122,8 @@ export function formDataToObject(formData: FormData): Record<string, unknown> {
 
 // --- Casos de uso ---------------------------------------------------------------------------
 
-export async function getProducts(db: DbClient): Promise<ProductRow[]> {
-  return listProducts(db);
+export async function getProducts(db: DbClient, ownerId: string): Promise<ProductRow[]> {
+  return listProducts(db, ownerId);
 }
 
 export async function createProduct(db: DbClient, user: User, input: unknown): Promise<ProductRow> {
@@ -207,8 +207,8 @@ export interface BitacoraOverview {
 
 const OVERVIEW_LIMIT = 50;
 
-export async function getOverview(db: DbClient): Promise<BitacoraOverview> {
-  const brews = await listBrews(db, OVERVIEW_LIMIT);
+export async function getOverview(db: DbClient, ownerId: string): Promise<BitacoraOverview> {
+  const brews = await listBrews(db, ownerId, OVERVIEW_LIMIT);
   const rated = brews.flatMap((brew) => (brew.rating === null ? [] : [brew.rating]));
 
   return {
