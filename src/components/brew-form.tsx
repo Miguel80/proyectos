@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState, type ChangeEvent } from "react";
 import { logBrewAction } from "@/actions/bitacora.actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import {
@@ -10,22 +10,85 @@ import {
   TASTING_SCORES,
   isKind,
 } from "@/lib/bitacora/constants";
+import { formatDuration, formatNumber } from "@/lib/bitacora/format";
+
+export interface LastRecipe {
+  method: string;
+  dose_g: number;
+  water_g: number;
+  water_temp_c: number | null;
+  steep_seconds: number | null;
+  grind_setting: string | null;
+  equipment: string | null;
+  water_notes: string | null;
+}
 
 export interface ProductOption {
   id: string;
   name: string;
   kind: string;
+  /** Última preparación de este producto, para repetir la receta. */
+  last: LastRecipe | null;
 }
 
 interface BrewFormProps {
   products: ProductOption[];
+  initialProductId?: string;
 }
+
+interface Recipe {
+  method: string;
+  dose: string;
+  water: string;
+  temp: string;
+  time: string;
+  grind: string;
+  equipment: string;
+  waterNotes: string;
+}
+
+const EMPTY_RECIPE: Recipe = {
+  method: "",
+  dose: "",
+  water: "",
+  temp: "",
+  time: "",
+  grind: "",
+  equipment: "",
+  waterNotes: "",
+};
 
 const SCORE_OPTIONS = [1, 2, 3, 4, 5] as const;
 
-export function BrewForm({ products }: BrewFormProps) {
+function recipeFrom(last: LastRecipe | null): Recipe {
+  if (!last) return EMPTY_RECIPE;
+  return {
+    method: last.method,
+    dose: String(last.dose_g),
+    water: String(last.water_g),
+    temp: last.water_temp_c === null ? "" : String(last.water_temp_c),
+    time: last.steep_seconds === null ? "" : formatDuration(last.steep_seconds),
+    grind: last.grind_setting ?? "",
+    equipment: last.equipment ?? "",
+    waterNotes: last.water_notes ?? "",
+  };
+}
+
+function parseDecimal(value: string): number {
+  return Number(value.trim().replace(",", "."));
+}
+
+export function BrewForm({ products, initialProductId }: BrewFormProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(logBrewAction, null);
+
+  const initial =
+    products.find((product) => product.id === initialProductId) ??
+    (products.length === 1 ? products[0] : undefined);
+
+  const [productId, setProductId] = useState(initial?.id ?? "");
+  const [recipe, setRecipe] = useState<Recipe>(() => recipeFrom(initial?.last ?? null));
+  const [prefilled, setPrefilled] = useState(Boolean(initial?.last));
 
   useEffect(() => {
     if (state?.ok) {
@@ -33,95 +96,213 @@ export function BrewForm({ products }: BrewFormProps) {
     }
   }, [state, router]);
 
-  return (
-    <form action={formAction} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Producto">
-          <select name="product_id" required defaultValue="" className={inputClass}>
-            <option value="" disabled>
-              Elige un producto
-            </option>
-            {products.map((product) => (
-              <option key={product.id} value={product.id}>
-                {isKind(product.kind) ? KIND_LABEL[product.kind] : product.kind} · {product.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Método">
-          <input name="method" required maxLength={60} list="brew-methods" className={inputClass} />
-          <datalist id="brew-methods">
-            {BREW_METHOD_SUGGESTIONS.map((method) => (
-              <option key={method} value={method} />
-            ))}
-          </datalist>
-        </Field>
-        <Field label="Dosis (g)" hint="Café o hebras secas">
-          <input name="dose_g" type="number" step="0.1" min="0.1" required className={inputClass} />
-        </Field>
-        <Field label="Agua (g)">
-          <input name="water_g" type="number" step="1" min="1" required className={inputClass} />
-        </Field>
-        <Field label="Temperatura del agua (°C)">
-          <input name="water_temp_c" type="number" step="0.5" min="0" max="100" className={inputClass} />
-        </Field>
-        <Field label="Tiempo (segundos)" hint="Extracción o infusión">
-          <input name="steep_seconds" type="number" step="1" min="1" className={inputClass} />
-        </Field>
-        <Field label="Molienda" hint="Ej.: 24 clicks, 5.5 en el molino">
-          <input name="grind_setting" maxLength={60} className={inputClass} />
-        </Field>
-        <Field label="Equipo">
-          <input name="equipment" maxLength={200} className={inputClass} />
-        </Field>
-        <Field label="Agua (notas)" hint="Filtrada, mineral, dureza…">
-          <input name="water_notes" maxLength={200} className={inputClass} />
-        </Field>
-        <Field label="Valoración general">
-          <select name="rating" defaultValue="" className={inputClass}>
-            <option value="">—</option>
-            {SCORE_OPTIONS.map((value) => (
-              <option key={value} value={value}>
-                {"★".repeat(value)}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+  const selected = products.find((product) => product.id === productId);
+  const isTea = selected?.kind === "tea";
+  const dryLabel = isTea ? "hebras de té" : "café";
 
-      <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-        <summary className="cursor-pointer text-sm font-medium">Cata (opcional)</summary>
-        <div className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-4">
-            {TASTING_SCORES.map(({ key, label }) => (
-              <Field key={key} label={label}>
-                <select name={key} defaultValue="" className={inputClass}>
-                  <option value="">—</option>
-                  {SCORE_OPTIONS.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ))}
-          </div>
-          <Field label="Descriptores" hint="Separados por coma: cítrico, chocolate, jazmín">
-            <input name="descriptors" className={inputClass} />
+  function handleProductChange(event: ChangeEvent<HTMLSelectElement>) {
+    const id = event.target.value;
+    const next = products.find((product) => product.id === id);
+    setProductId(id);
+    setRecipe(recipeFrom(next?.last ?? null));
+    setPrefilled(Boolean(next?.last));
+  }
+
+  const update = (key: keyof Recipe) => (event: ChangeEvent<HTMLInputElement>) => {
+    setRecipe((current) => ({ ...current, [key]: event.target.value }));
+  };
+
+  const dose = parseDecimal(recipe.dose);
+  const water = parseDecimal(recipe.water);
+  const ratio = dose > 0 && water > 0 ? water / dose : null;
+
+  return (
+    <form action={formAction} className="space-y-6">
+      <fieldset className="space-y-4">
+        <legend className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
+          1 · Qué preparaste
+        </legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Producto">
+            <select
+              name="product_id"
+              required
+              value={productId}
+              onChange={handleProductChange}
+              className={inputClass}
+            >
+              <option value="" disabled>
+                Elige un producto
+              </option>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {isKind(product.kind) ? KIND_LABEL[product.kind] : product.kind} · {product.name}
+                </option>
+              ))}
+            </select>
           </Field>
-          <Field label="Notas de cata">
-            <textarea name="tasting_notes" rows={2} maxLength={2000} className={inputClass} />
+          <Field label="Método" hint="Elige de la lista o escribe el tuyo">
+            <input
+              name="method"
+              required
+              maxLength={60}
+              list="brew-methods"
+              value={recipe.method}
+              onChange={update("method")}
+              placeholder="Ej.: Prensa francesa"
+              className={inputClass}
+            />
+            <datalist id="brew-methods">
+              {BREW_METHOD_SUGGESTIONS.map((method) => (
+                <option key={method} value={method} />
+              ))}
+            </datalist>
           </Field>
         </div>
-      </details>
+        {prefilled ? (
+          <p className="text-sm text-emerald-700 dark:text-emerald-400">
+            Rellené la receta con tu última preparación de este producto. Ajusta lo que cambió.
+          </p>
+        ) : null}
+      </fieldset>
 
-      <Field label="Notas">
-        <textarea name="notes" rows={2} maxLength={2000} className={inputClass} />
-      </Field>
+      <fieldset className="space-y-4">
+        <legend className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
+          2 · Receta
+        </legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label={`Cantidad de ${dryLabel} (gramos)`}>
+            <input
+              name="dose_g"
+              required
+              inputMode="decimal"
+              value={recipe.dose}
+              onChange={update("dose")}
+              placeholder="Ej.: 15"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Cantidad de agua (gramos)" hint="1 ml de agua pesa 1 g">
+            <input
+              name="water_g"
+              required
+              inputMode="decimal"
+              value={recipe.water}
+              onChange={update("water")}
+              placeholder="Ej.: 250"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        <p aria-live="polite" className="text-sm text-stone-600 dark:text-stone-400">
+          {ratio === null
+            ? "Escribe café y agua para ver la proporción."
+            : `Proporción: 1 de ${isTea ? "té" : "café"} por ${formatNumber(ratio)} de agua (1:${formatNumber(ratio)})`}
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Temperatura del agua (°C)">
+            <input
+              name="water_temp_c"
+              inputMode="decimal"
+              value={recipe.temp}
+              onChange={update("temp")}
+              placeholder="Ej.: 93"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Tiempo" hint="Minutos y segundos, por ejemplo 3:30">
+            <input
+              name="steep_seconds"
+              value={recipe.time}
+              onChange={update("time")}
+              placeholder="Ej.: 4:00"
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+          <summary className="cursor-pointer text-sm font-medium">Más detalles de la receta (opcional)</summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Molienda" hint="Ej.: 24 clicks, o 5,5 en el molino">
+              <input
+                name="grind_setting"
+                maxLength={60}
+                value={recipe.grind}
+                onChange={update("grind")}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Equipo">
+              <input
+                name="equipment"
+                maxLength={200}
+                value={recipe.equipment}
+                onChange={update("equipment")}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Agua usada" hint="Filtrada, mineral, de la llave…">
+              <input
+                name="water_notes"
+                maxLength={200}
+                value={recipe.waterNotes}
+                onChange={update("waterNotes")}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+        </details>
+      </fieldset>
 
-      <FormMessage state={state} successText="Preparación registrada." />
+      <fieldset className="space-y-4">
+        <legend className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
+          3 · Cómo salió
+        </legend>
+        <Field label="Valoración general">
+          <select name="rating" defaultValue="" className={inputClass}>
+            <option value="">Sin valorar</option>
+            {SCORE_OPTIONS.map((value) => (
+              <option key={value} value={value}>
+                {"★".repeat(value)} ({value} de 5)
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Notas" hint="Lo que quieras recordar de esta taza">
+          <textarea name="notes" rows={2} maxLength={2000} className={inputClass} />
+        </Field>
+
+        <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+          <summary className="cursor-pointer text-sm font-medium">Cata detallada (opcional)</summary>
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-stone-500">Puntúa de 1 (bajo) a 5 (alto) lo que notaste.</p>
+            <div className="grid gap-4 sm:grid-cols-4">
+              {TASTING_SCORES.map(({ key, label }) => (
+                <Field key={key} label={label}>
+                  <select name={key} defaultValue="" className={inputClass}>
+                    <option value="">—</option>
+                    {SCORE_OPTIONS.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              ))}
+            </div>
+            <Field label="Sabores que notaste" hint="Separados por coma: chocolate, caramelo, cítrico">
+              <input name="descriptors" className={inputClass} />
+            </Field>
+            <Field label="Notas de cata">
+              <textarea name="tasting_notes" rows={2} maxLength={2000} className={inputClass} />
+            </Field>
+          </div>
+        </details>
+      </fieldset>
+
+      <FormMessage state={state} successText="Taza registrada." />
       <button type="submit" disabled={pending} className={buttonClass}>
-        {pending ? "Guardando…" : "Registrar preparación"}
+        {pending ? "Guardando…" : "Guardar taza"}
       </button>
     </form>
   );

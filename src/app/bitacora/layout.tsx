@@ -17,13 +17,13 @@ export default function BitacoraLayout({ children }: BitacoraLayoutProps) {
           </Link>
           <nav className="flex gap-4 text-sm text-stone-600 dark:text-stone-400">
             <Link href="/bitacora" className="hover:text-stone-900 dark:hover:text-stone-100">
-              Preparaciones
+              Historial
             </Link>
             <Link href="/bitacora/nueva" className="hover:text-stone-900 dark:hover:text-stone-100">
-              Nueva
+              Registrar taza
             </Link>
             <Link href="/bitacora/productos" className="hover:text-stone-900 dark:hover:text-stone-100">
-              Productos
+              Mis cafés y tés
             </Link>
           </nav>
         </div>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { deleteBrewAction } from "@/actions/bitacora.actions";
 import { buttonClass, cardClass, secondaryButtonClass } from "@/components/ui";
 import { isKind, KIND_LABEL } from "@/lib/bitacora/constants";
-import { formatDateTime, formatDuration, formatStars } from "@/lib/bitacora/format";
+import { formatDateTime, formatDuration, formatNumber, formatStars } from "@/lib/bitacora/format";
 import { requireUserOrRedirect } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getOverview } from "@/services/bitacora.service";
@@ -20,7 +20,7 @@ export default async function BitacoraPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <dl className="flex gap-8 text-sm">
           <div>
-            <dt className="text-stone-500">Registradas</dt>
+            <dt className="text-stone-500">Tazas</dt>
             <dd className="text-xl font-semibold">{stats.shown}</dd>
           </div>
           <div>
@@ -37,17 +37,17 @@ export default async function BitacoraPage() {
           </div>
         </dl>
         <Link href="/bitacora/nueva" className={buttonClass}>
-          Nueva preparación
+          Registrar taza
         </Link>
       </div>
 
       {brews.length === 0 ? (
         <p className={`${cardClass} text-sm text-stone-600 dark:text-stone-400`}>
-          Aún no hay preparaciones. Crea primero un{" "}
+          Aún no hay tazas registradas. Empieza agregando tu primer{" "}
           <Link href="/bitacora/productos" className="underline">
-            producto
+            café o té
           </Link>{" "}
-          y luego registra tu primera taza.
+          y luego registra la taza.
         </p>
       ) : (
         <ul className="space-y-3">
@@ -73,9 +73,9 @@ export default async function BitacoraPage() {
               </div>
 
               <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">
-                {brew.method} · {brew.dose_g} g → {brew.water_g} g
-                {brew.ratio !== null ? ` (1:${brew.ratio})` : ""}
-                {brew.water_temp_c !== null ? ` · ${brew.water_temp_c} °C` : ""}
+                {brew.method} · {formatNumber(brew.dose_g)} g de {brew.product?.kind === "tea" ? "té" : "café"} + {formatNumber(brew.water_g)} g de agua
+                {brew.ratio !== null ? ` · 1:${formatNumber(brew.ratio)}` : ""}
+                {brew.water_temp_c !== null ? ` · ${formatNumber(brew.water_temp_c)} °C` : ""}
                 {brew.steep_seconds !== null ? ` · ${formatDuration(brew.steep_seconds)}` : ""}
                 {brew.grind_setting ? ` · molienda ${brew.grind_setting}` : ""}
               </p>
@@ -95,12 +95,19 @@ export default async function BitacoraPage() {
 
               {brew.notes ? <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">{brew.notes}</p> : null}
 
-              <form action={deleteBrewAction} className="mt-3">
-                <input type="hidden" name="id" value={brew.id} />
-                <button type="submit" className={secondaryButtonClass}>
-                  Eliminar
-                </button>
-              </form>
+              <div className="mt-3 flex gap-2">
+                {brew.product_id ? (
+                  <Link href={`/bitacora/nueva?producto=${brew.product_id}`} className={secondaryButtonClass}>
+                    Repetir
+                  </Link>
+                ) : null}
+                <form action={deleteBrewAction}>
+                  <input type="hidden" name="id" value={brew.id} />
+                  <button type="submit" className={secondaryButtonClass}>
+                    Eliminar
+                  </button>
+                </form>
+              </div>
             </li>
           ))}
         </ul>

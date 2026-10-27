@@ -31,17 +31,31 @@ const text = (max: number) =>
 const requiredText = (max: number, message: string) =>
   z.string({ error: message }).trim().min(1, message).max(max);
 
-const number = (schema: z.ZodNumber) =>
-  z.preprocess((value) => {
-    const cleaned = blankToUndefined(value);
-    return cleaned === undefined ? undefined : Number(cleaned);
-  }, schema.optional());
+/** Acepta coma decimal ("16,5"), habitual al escribir en español. */
+const toNumber = (value: unknown): number | undefined => {
+  const cleaned = blankToUndefined(value);
+  return cleaned === undefined ? undefined : Number(String(cleaned).trim().replace(",", "."));
+};
+
+/** Acepta segundos ("210") o reloj ("3:30"). */
+const toSeconds = (value: unknown): number | undefined => {
+  const cleaned = blankToUndefined(value);
+  if (cleaned === undefined) return undefined;
+  const raw = String(cleaned).trim();
+  const clock = /^(\d+):([0-5]?\d)$/.exec(raw);
+  if (clock) return Number(clock[1] ?? 0) * 60 + Number(clock[2] ?? 0);
+  return Number(raw.replace(",", "."));
+};
+
+const number = (schema: z.ZodNumber) => z.preprocess(toNumber, schema.optional());
 
 const requiredNumber = (schema: z.ZodNumber, message: string) =>
-  z.preprocess((value) => {
-    const cleaned = blankToUndefined(value);
-    return cleaned === undefined ? undefined : Number(cleaned);
-  }, schema.refine((n) => Number.isFinite(n), message));
+  z.preprocess(toNumber, schema.refine((n) => Number.isFinite(n), message));
+
+const duration = z.preprocess(
+  toSeconds,
+  z.number({ error: "Escribe el tiempo como 3:30 o en segundos" }).int().positive().max(86400).optional(),
+);
 
 const score = number(z.number().int().min(1).max(5));
 
@@ -84,7 +98,7 @@ export const logBrewSchema = z.object({
   water_g: requiredNumber(z.number().positive().max(99999), "El agua debe ser mayor a 0"),
   water_temp_c: number(z.number().min(0).max(100)),
   grind_setting: text(60),
-  steep_seconds: number(z.number().int().positive().max(86400)),
+  steep_seconds: duration,
   equipment: text(200),
   water_notes: text(200),
   rating: number(z.number().int().min(1).max(5)),
