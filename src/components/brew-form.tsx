@@ -158,6 +158,9 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
             </datalist>
           </Field>
         </div>
+        <Field label="Lugar (opcional)" hint="Dónde la tomaste: en casa, nombre de la cafetería…">
+          <input name="place" maxLength={120} placeholder="Ej.: Café Sorrento, Viña" className={inputClass} />
+        </Field>
         {prefilled ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
             Rellené la receta con tu última preparación de este producto. Ajusta lo que cambió.

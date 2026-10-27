@@ -98,6 +98,7 @@ export const logBrewSchema = z.object({
   steep_seconds: duration,
   equipment: text(200),
   water_notes: text(200),
+  place: text(120),
   rating: number(z.number().int().min(1).max(5)),
   notes: text(2000),
   aroma: score,
@@ -162,6 +163,7 @@ export async function logBrew(db: DbClient, user: User, input: unknown): Promise
     steep_seconds: parsed.steep_seconds ?? null,
     equipment: parsed.equipment ?? null,
     water_notes: parsed.water_notes ?? null,
+    place: parsed.place ?? null,
     rating: parsed.rating ?? null,
     notes: parsed.notes ?? null,
   });

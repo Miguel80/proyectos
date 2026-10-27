@@ -63,7 +63,10 @@ export default async function BitacoraPage() {
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-stone-500">{formatDateTime(brew.brewed_at)}</p>
+                  <p className="text-xs text-stone-500">
+                    {formatDateTime(brew.brewed_at)}
+                    {brew.place ? ` · ${brew.place}` : ""}
+                  </p>
                 </div>
                 {brew.rating !== null ? (
                   <p aria-label={`Valoración ${brew.rating} de 5`} className="text-amber-600">
