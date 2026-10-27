@@ -14,8 +14,8 @@ import { formatDuration, formatNumber } from "@/lib/bitacora/format";
 
 export interface LastRecipe {
   method: string;
-  dose_g: number;
-  water_g: number;
+  dose_g: number | null;
+  water_g: number | null;
   water_temp_c: number | null;
   steep_seconds: number | null;
   grind_setting: string | null;
@@ -64,8 +64,8 @@ function recipeFrom(last: LastRecipe | null): Recipe {
   if (!last) return EMPTY_RECIPE;
   return {
     method: last.method,
-    dose: String(last.dose_g),
-    water: String(last.water_g),
+    dose: last.dose_g === null ? "" : String(last.dose_g),
+    water: last.water_g === null ? "" : String(last.water_g),
     temp: last.water_temp_c === null ? "" : String(last.water_temp_c),
     time: last.steep_seconds === null ? "" : formatDuration(last.steep_seconds),
     grind: last.grind_setting ?? "",
@@ -141,10 +141,9 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
               ))}
             </select>
           </Field>
-          <Field label="Método" hint="Elige de la lista o escribe el tuyo">
+          <Field label="Método (opcional)" hint="Elige de la lista o escribe el tuyo">
             <input
               name="method"
-              required
               maxLength={60}
               list="brew-methods"
               value={recipe.method}
@@ -168,13 +167,15 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
 
       <fieldset className="space-y-4">
         <legend className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-500">
-          2 · Receta
+          2 · Receta (opcional)
         </legend>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          Si probaste el café en otro lugar y no conoces las medidas, déjalo en blanco y pasa a la cata.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={`Cantidad de ${dryLabel} (gramos)`}>
+          <Field label={`Cantidad de ${dryLabel} (gramos)`} hint="Opcional">
             <input
               name="dose_g"
-              required
               inputMode="decimal"
               value={recipe.dose}
               onChange={update("dose")}
@@ -182,10 +183,9 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
               className={inputClass}
             />
           </Field>
-          <Field label="Cantidad de agua (gramos)" hint="1 ml de agua pesa 1 g">
+          <Field label="Cantidad de agua (gramos)" hint="Opcional · 1 ml de agua pesa 1 g">
             <input
               name="water_g"
-              required
               inputMode="decimal"
               value={recipe.water}
               onChange={update("water")}
@@ -196,7 +196,7 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
         </div>
         <p aria-live="polite" className="text-sm text-stone-600 dark:text-stone-400">
           {ratio === null
-            ? "Escribe café y agua para ver la proporción."
+            ? "Con café y agua calculo la proporción."
             : `Proporción: 1 de ${isTea ? "té" : "café"} por ${formatNumber(ratio)} de agua (1:${formatNumber(ratio)})`}
         </p>
         <div className="grid gap-4 sm:grid-cols-2">

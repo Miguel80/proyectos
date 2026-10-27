@@ -73,11 +73,18 @@ export default async function BitacoraPage() {
               </div>
 
               <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">
-                {brew.method} · {formatNumber(brew.dose_g)} g de {brew.product?.kind === "tea" ? "té" : "café"} + {formatNumber(brew.water_g)} g de agua
-                {brew.ratio !== null ? ` · 1:${formatNumber(brew.ratio)}` : ""}
-                {brew.water_temp_c !== null ? ` · ${formatNumber(brew.water_temp_c)} °C` : ""}
-                {brew.steep_seconds !== null ? ` · ${formatDuration(brew.steep_seconds)}` : ""}
-                {brew.grind_setting ? ` · molienda ${brew.grind_setting}` : ""}
+                {[
+                  brew.method === "Sin especificar" ? null : brew.method,
+                  brew.dose_g !== null && brew.water_g !== null
+                    ? `${formatNumber(brew.dose_g)} g de ${brew.product?.kind === "tea" ? "té" : "café"} + ${formatNumber(brew.water_g)} g de agua`
+                    : null,
+                  brew.ratio !== null ? `1:${formatNumber(brew.ratio)}` : null,
+                  brew.water_temp_c !== null ? `${formatNumber(brew.water_temp_c)} °C` : null,
+                  brew.steep_seconds !== null ? formatDuration(brew.steep_seconds) : null,
+                  brew.grind_setting ? `molienda ${brew.grind_setting}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Sin datos de receta"}
               </p>
 
               {brew.tasting && brew.tasting.descriptors.length > 0 ? (

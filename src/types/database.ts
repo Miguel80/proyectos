@@ -15,7 +15,7 @@ export type Database = {
         Row: {
           brewed_at: string;
           created_at: string;
-          dose_g: number;
+          dose_g: number | null;
           equipment: string | null;
           grind_setting: string | null;
           id: string;
@@ -26,14 +26,14 @@ export type Database = {
           ratio: number | null;
           steep_seconds: number | null;
           user_id: string;
-          water_g: number;
+          water_g: number | null;
           water_notes: string | null;
           water_temp_c: number | null;
         };
         Insert: {
           brewed_at?: string;
           created_at?: string;
-          dose_g: number;
+          dose_g?: number | null;
           equipment?: string | null;
           grind_setting?: string | null;
           id?: string;
@@ -44,14 +44,14 @@ export type Database = {
           ratio?: number | null;
           steep_seconds?: number | null;
           user_id?: string;
-          water_g: number;
+          water_g?: number | null;
           water_notes?: string | null;
           water_temp_c?: number | null;
         };
         Update: {
           brewed_at?: string;
           created_at?: string;
-          dose_g?: number;
+          dose_g?: number | null;
           equipment?: string | null;
           grind_setting?: string | null;
           id?: string;
@@ -62,7 +62,7 @@ export type Database = {
           ratio?: number | null;
           steep_seconds?: number | null;
           user_id?: string;
-          water_g?: number;
+          water_g?: number | null;
           water_notes?: string | null;
           water_temp_c?: number | null;
         };

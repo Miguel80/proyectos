@@ -49,9 +49,6 @@ const toSeconds = (value: unknown): number | undefined => {
 
 const number = (schema: z.ZodNumber) => z.preprocess(toNumber, schema.optional());
 
-const requiredNumber = (schema: z.ZodNumber, message: string) =>
-  z.preprocess(toNumber, schema.refine((n) => Number.isFinite(n), message));
-
 const duration = z.preprocess(
   toSeconds,
   z.number({ error: "Escribe el tiempo como 3:30 o en segundos" }).int().positive().max(86400).optional(),
@@ -93,9 +90,9 @@ export const createProductSchema = z.object({
 
 export const logBrewSchema = z.object({
   product_id: z.uuid({ error: "Elige un producto" }),
-  method: requiredText(60, "El método es obligatorio"),
-  dose_g: requiredNumber(z.number().positive().max(9999), "La dosis debe ser mayor a 0"),
-  water_g: requiredNumber(z.number().positive().max(99999), "El agua debe ser mayor a 0"),
+  method: text(60),
+  dose_g: number(z.number().positive().max(9999)),
+  water_g: number(z.number().positive().max(99999)),
   water_temp_c: number(z.number().min(0).max(100)),
   grind_setting: text(60),
   steep_seconds: duration,
@@ -157,9 +154,9 @@ export async function logBrew(db: DbClient, user: User, input: unknown): Promise
   const brew = await insertBrew(db, {
     user_id: user.id,
     product_id: parsed.product_id,
-    method: parsed.method,
-    dose_g: parsed.dose_g,
-    water_g: parsed.water_g,
+    method: parsed.method ?? "Sin especificar",
+    dose_g: parsed.dose_g ?? null,
+    water_g: parsed.water_g ?? null,
     water_temp_c: parsed.water_temp_c ?? null,
     grind_setting: parsed.grind_setting ?? null,
     steep_seconds: parsed.steep_seconds ?? null,
