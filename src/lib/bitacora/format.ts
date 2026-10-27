@@ -17,6 +17,31 @@ export function formatNumber(value: number): string {
   return numberFormat.format(value);
 }
 
+/** Dosis tal como se midió: "15 g", "2 cucharadas soperas (~10 g)", "1 cucharadita (~2 g)". */
+export function formatDose(
+  amount: number | null,
+  unit: string | null,
+  grams: number | null,
+): string | null {
+  if (unit === "tsp" || unit === "tbsp") {
+    if (amount === null)
+      return grams === null ? null : `${numberFormat.format(grams)} g`;
+    const plural = amount !== 1;
+    const name =
+      unit === "tsp"
+        ? plural
+          ? "cucharaditas"
+          : "cucharadita"
+        : plural
+          ? "cucharadas soperas"
+          : "cucharada sopera";
+    const approx = grams === null ? "" : ` (~${numberFormat.format(grams)} g)`;
+    return `${numberFormat.format(amount)} ${name}${approx}`;
+  }
+  const value = amount ?? grams;
+  return value === null ? null : `${numberFormat.format(value)} g`;
+}
+
 /** Agua en ml (1 g = 1 ml): 250 -> "250 ml", 1500 -> "1,5 L". */
 export function formatVolume(ml: number): string {
   return ml >= 1000

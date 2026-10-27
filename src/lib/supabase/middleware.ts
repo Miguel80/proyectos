@@ -6,7 +6,11 @@ import type { Database } from "@/types/database";
 /** Rutas que exigen sesión. El control definitivo está además en RLS y en cada página. */
 const PROTECTED_PREFIXES = ["/bitacora"];
 
-function redirectTo(request: NextRequest, pathname: string, source: NextResponse): NextResponse {
+function redirectTo(
+  request: NextRequest,
+  pathname: string,
+  source: NextResponse,
+): NextResponse {
   const url = request.nextUrl.clone();
   url.pathname = pathname;
   url.search = "";
@@ -17,11 +21,15 @@ function redirectTo(request: NextRequest, pathname: string, source: NextResponse
 }
 
 /** Refresca la sesión de Supabase en cada request, propaga las cookies y protege rutas privadas. */
-export async function updateSession(request: NextRequest): Promise<NextResponse> {
+export async function updateSession(
+  request: NextRequest,
+): Promise<NextResponse> {
   let response = NextResponse.next({ request });
 
   if (!isSupabaseConfigured()) {
-    console.warn("[middleware] Supabase no configurado: se omite el refresco de sesión.");
+    console.warn(
+      "[middleware] Supabase no configurado: se omite el refresco de sesión.",
+    );
     return response;
   }
 
@@ -36,7 +44,9 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
@@ -57,7 +67,8 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   );
 
   if (!user && isProtected) return redirectTo(request, "/login", response);
-  if (user && pathname === "/login") return redirectTo(request, "/bitacora", response);
+  if (user && pathname === "/login")
+    return redirectTo(request, "/bitacora", response);
 
   return response;
 }

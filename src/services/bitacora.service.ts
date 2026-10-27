@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { z } from "zod";
 import { AppError } from "@/lib/api/response";
 import {
+  gramsPerDoseUnit,
   KINDS,
   ROAST_LEVELS,
   TASTING_SCORES,
@@ -125,7 +126,11 @@ export const createProductSchema = z.object({
 export const logBrewSchema = z.object({
   product_id: z.uuid({ error: "Elige un producto" }),
   method: text(60),
-  dose_g: number(z.number().positive().max(9999)),
+  dose_amount: number(z.number().positive().max(9999)),
+  dose_unit: z.preprocess(
+    blankToUndefined,
+    z.enum(["g", "tsp", "tbsp"]).default("g"),
+  ),
   water_g: z.preprocess(
     toMilliliters,
     z.number().positive().max(99999).optional(),
@@ -254,7 +259,7 @@ export async function logBrew(
       ...(parsed.brewed_at ? { brewed_at: parsed.brewed_at } : {}),
       product_id: parsed.product_id,
       method: parsed.method ?? "Sin especificar",
-      dose_g: parsed.dose_g ?? null,
+      ...doseColumns(parsed),
       water_g: parsed.water_g ?? null,
       water_temp_c: parsed.water_temp_c ?? null,
       grind_setting: parsed.grind_setting ?? null,
@@ -278,6 +283,21 @@ export async function logBrew(
   }
 
   return brew;
+}
+
+/** Dosis tal como se midió + su equivalente en gramos (para la proporción). */
+function doseColumns(parsed: LogBrewInput) {
+  if (parsed.dose_amount === undefined) {
+    return { dose_amount: null, dose_unit: null, dose_g: null };
+  }
+  return {
+    dose_amount: parsed.dose_amount,
+    dose_unit: parsed.dose_unit,
+    dose_g:
+      Math.round(
+        parsed.dose_amount * gramsPerDoseUnit(parsed.dose_unit) * 100,
+      ) / 100,
+  };
 }
 
 /** Arma la cata a partir del formulario; devuelve null si no se llenó ningún dato de cata. */
@@ -329,7 +349,7 @@ export async function updateBrew(
       product_id: parsed.product_id,
       ...(parsed.brewed_at ? { brewed_at: parsed.brewed_at } : {}),
       method: parsed.method ?? "Sin especificar",
-      dose_g: parsed.dose_g ?? null,
+      ...doseColumns(parsed),
       water_g: parsed.water_g ?? null,
       water_temp_c: parsed.water_temp_c ?? null,
       grind_setting: parsed.grind_setting ?? null,

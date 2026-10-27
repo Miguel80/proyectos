@@ -12,6 +12,9 @@ import { logBrewAction, updateBrewAction } from "@/actions/bitacora.actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import {
   BREW_METHOD_SUGGESTIONS,
+  DOSE_UNITS,
+  gramsPerDoseUnit,
+  isDoseUnit,
   KIND_LABEL,
   TASTING_SCORES,
   isKind,
@@ -22,6 +25,8 @@ import type { BrewView } from "@/services/bitacora.service";
 export interface LastRecipe {
   method: string;
   dose_g: number | null;
+  dose_amount: number | null;
+  dose_unit: string | null;
   water_g: number | null;
   water_temp_c: number | null;
   steep_seconds: number | null;
@@ -50,6 +55,7 @@ interface BrewFormProps {
 interface Recipe {
   method: string;
   dose: string;
+  doseUnit: string;
   water: string;
   temp: string;
   time: string;
@@ -61,6 +67,7 @@ interface Recipe {
 const EMPTY_RECIPE: Recipe = {
   method: "",
   dose: "",
+  doseUnit: "g",
   water: "",
   temp: "",
   time: "",
@@ -75,7 +82,13 @@ function recipeFrom(last: LastRecipe | null): Recipe {
   if (!last) return EMPTY_RECIPE;
   return {
     method: last.method,
-    dose: last.dose_g === null ? "" : String(last.dose_g),
+    dose:
+      last.dose_amount !== null
+        ? String(last.dose_amount)
+        : last.dose_g === null
+          ? ""
+          : String(last.dose_g),
+    doseUnit: last.dose_unit ?? "g",
     water: last.water_g === null ? "" : String(last.water_g),
     temp: last.water_temp_c === null ? "" : String(last.water_temp_c),
     time: last.steep_seconds === null ? "" : formatDuration(last.steep_seconds),
@@ -258,7 +271,9 @@ export function BrewForm({
       setRecipe((current) => ({ ...current, [key]: event.target.value }));
     };
 
-  const dose = parseDecimal(recipe.dose);
+  const dose =
+    parseDecimal(recipe.dose) *
+    gramsPerDoseUnit(isDoseUnit(recipe.doseUnit) ? recipe.doseUnit : "g");
   const water = parseWaterMl(recipe.water);
   const ratio = dose > 0 && water > 0 ? water / dose : null;
 
@@ -420,15 +435,39 @@ export function BrewForm({
           blanco y pasa a la cata.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={`Cantidad de ${dryLabel} (gramos)`} hint="Opcional">
-            <input
-              name="dose_g"
-              inputMode="decimal"
-              value={recipe.dose}
-              onChange={update("dose")}
-              placeholder="Ej.: 15"
-              className={inputClass}
-            />
+          <Field
+            label={`Cantidad de ${dryLabel}`}
+            hint="Opcional · en gramos o cucharadas (1 cucharada sopera ≈ 5 g, 1 cucharadita ≈ 2 g)"
+          >
+            <div className="flex gap-2">
+              <input
+                name="dose_amount"
+                aria-label="Cantidad"
+                inputMode="decimal"
+                value={recipe.dose}
+                onChange={update("dose")}
+                placeholder="Ej.: 15"
+                className={`${inputClass} min-w-0 flex-1`}
+              />
+              <select
+                name="dose_unit"
+                aria-label="Unidad"
+                value={recipe.doseUnit}
+                onChange={(event) =>
+                  setRecipe((current) => ({
+                    ...current,
+                    doseUnit: event.target.value,
+                  }))
+                }
+                className={`${inputClass} w-auto`}
+              >
+                {DOSE_UNITS.map((unit) => (
+                  <option key={unit.value} value={unit.value}>
+                    {unit.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </Field>
           <Field
             label="Cantidad de agua"

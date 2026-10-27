@@ -30,6 +30,8 @@ export default async function NewBrewPage({ searchParams }: NewBrewPageProps) {
       lastByProduct.set(brew.product_id, {
         method: brew.method,
         dose_g: brew.dose_g,
+        dose_amount: brew.dose_amount,
+        dose_unit: brew.dose_unit,
         water_g: brew.water_g,
         water_temp_c: brew.water_temp_c,
         steep_seconds: brew.steep_seconds,

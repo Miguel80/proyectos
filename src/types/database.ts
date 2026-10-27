@@ -15,7 +15,9 @@ export type Database = {
         Row: {
           brewed_at: string;
           created_at: string;
+          dose_amount: number | null;
           dose_g: number | null;
+          dose_unit: string | null;
           equipment: string | null;
           grind_setting: string | null;
           id: string;
@@ -35,7 +37,9 @@ export type Database = {
         Insert: {
           brewed_at?: string;
           created_at?: string;
+          dose_amount?: number | null;
           dose_g?: number | null;
+          dose_unit?: string | null;
           equipment?: string | null;
           grind_setting?: string | null;
           id?: string;
@@ -55,7 +59,9 @@ export type Database = {
         Update: {
           brewed_at?: string;
           created_at?: string;
+          dose_amount?: number | null;
           dose_g?: number | null;
+          dose_unit?: string | null;
           equipment?: string | null;
           grind_setting?: string | null;
           id?: string;

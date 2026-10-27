@@ -4,6 +4,7 @@ import { cardClass, secondaryButtonClass } from "@/components/ui";
 import { isKind, KIND_LABEL } from "@/lib/bitacora/constants";
 import {
   formatDateTime,
+  formatDose,
   formatDuration,
   formatNumber,
   formatStars,
@@ -18,6 +19,9 @@ interface BrewCardProps {
 }
 
 export function BrewCard({ brew, readOnly = false }: BrewCardProps) {
+  const doseText = formatDose(brew.dose_amount, brew.dose_unit, brew.dose_g);
+  const dryName = brew.product?.kind === "tea" ? "té" : "café";
+
   return (
     <li className={cardClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -66,9 +70,14 @@ export function BrewCard({ brew, readOnly = false }: BrewCardProps) {
       <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">
         {[
           brew.method === "Sin especificar" ? null : brew.method,
-          brew.dose_g !== null && brew.water_g !== null
-            ? `${formatNumber(brew.dose_g)} g de ${brew.product?.kind === "tea" ? "té" : "café"} + ${formatVolume(brew.water_g)} de agua`
-            : null,
+          [
+            doseText ? `${doseText} de ${dryName}` : null,
+            brew.water_g !== null
+              ? `${formatVolume(brew.water_g)} de agua`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" + ") || null,
           brew.ratio !== null ? `1:${formatNumber(brew.ratio)}` : null,
           brew.water_temp_c !== null
             ? `${formatNumber(brew.water_temp_c)} °C`

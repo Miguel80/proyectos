@@ -13,7 +13,9 @@ const publicSchema = z.object({
 
 const n8nSchema = z.object({
   N8N_WEBHOOK_BASE_URL: z.string().url(),
-  N8N_WEBHOOK_SECRET: z.string().min(32, "N8N_WEBHOOK_SECRET debe tener al menos 32 caracteres"),
+  N8N_WEBHOOK_SECRET: z
+    .string()
+    .min(32, "N8N_WEBHOOK_SECRET debe tener al menos 32 caracteres"),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;
@@ -23,7 +25,8 @@ export type N8nEnv = z.infer<typeof n8nSchema>;
 export function getPublicEnv(): PublicEnv {
   return publicSchema.parse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   });
 }
 
@@ -38,7 +41,8 @@ export function getN8nEnv(): N8nEnv {
 export function isSupabaseConfigured(): boolean {
   return publicSchema.safeParse({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   }).success;
 }
 
