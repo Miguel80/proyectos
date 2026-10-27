@@ -1,0 +1,21 @@
+# dependencias
+node_modules/
+
+# next
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# entorno (NUNCA commitear secretos)
+.env
+.env.*
+!.env.example
+
+# n8n local
+.n8n-data/
+
+# varios
+.DS_Store
+*.log
+.vercel

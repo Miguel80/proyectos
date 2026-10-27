@@ -1,0 +1,19 @@
+# n8n local para desarrollo. Uso: `npm run n8n:up` y abrir http://localhost:5678
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678" # solo accesible desde tu máquina
+    environment:
+      - GENERIC_TIMEZONE=America/Santiago
+      - TZ=America/Santiago
+      - N8N_SECURE_COOKIE=false # solo desarrollo local sobre http
+      # Permite usar {{ $env.N8N_WEBHOOK_SECRET }} dentro de los workflows.
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET:?define N8N_WEBHOOK_SECRET en .env.local o en el entorno}
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # n8n -> Next.js en el host
+    volumes:
+      - ./.n8n-data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro # importar con: n8n import:workflow --input=/workflows/template-ping.json

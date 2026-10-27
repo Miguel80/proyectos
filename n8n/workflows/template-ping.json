@@ -1,0 +1,46 @@
+{
+  "name": "template-ping",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "template-ping",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "5b1d2f7e-0a64-4c1e-9b0a-1f6c1a7a0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "5b1d2f7e-0a64-4c1e-9b0a-1f6c1a7a1001"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/webhooks/n8n",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $env.N8N_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ event: 'template.ping', payload: $json.body }) }}",
+        "options": {}
+      },
+      "id": "5b1d2f7e-0a64-4c1e-9b0a-1f6c1a7a0002",
+      "name": "Notificar a la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Notificar a la app", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {}
+}
