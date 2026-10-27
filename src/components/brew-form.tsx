@@ -130,6 +130,13 @@ function parseWaterMl(value: string): number {
   return (match[2] ?? "ml").toLowerCase() === "ml" ? amount : amount * 1000;
 }
 
+/** Tamaños de taza habituales (ml). Cualquier otra cantidad se escribe a mano. */
+const WATER_PRESETS = ["100", "150", "200", "250"] as const;
+const isPresetWater = (value: string) =>
+  (WATER_PRESETS as readonly string[]).includes(value);
+const needsCustomWater = (value: string) =>
+  value !== "" && !isPresetWater(value);
+
 function parseDecimal(value: string): number {
   return Number(value.trim().replace(",", "."));
 }
@@ -157,6 +164,9 @@ export function BrewForm({
   );
   const [recipe, setRecipe] = useState<Recipe>(() =>
     brew ? recipeFrom(brew) : recipeFrom(initial?.last ?? null),
+  );
+  const [customWater, setCustomWater] = useState(() =>
+    needsCustomWater(recipe.water),
   );
   const [prefilled, setPrefilled] = useState(Boolean(initial?.last));
 
@@ -237,7 +247,9 @@ export function BrewForm({
     const next = products.find((product) => product.id === id);
     setProductId(id);
     if (editing) return; // al editar no se pisa la receta guardada
-    setRecipe(recipeFrom(next?.last ?? null));
+    const nextRecipe = recipeFrom(next?.last ?? null);
+    setRecipe(nextRecipe);
+    setCustomWater(needsCustomWater(nextRecipe.water));
     setPrefilled(Boolean(next?.last));
   }
 
@@ -419,17 +431,48 @@ export function BrewForm({
             />
           </Field>
           <Field
-            label="Cantidad de agua (ml)"
-            hint="Opcional · en ml; también puedes escribir 1,5 L"
+            label="Cantidad de agua"
+            hint="Opcional · elige el tamaño de tu taza"
           >
-            <input
-              name="water_g"
-              inputMode="decimal"
-              value={recipe.water}
-              onChange={update("water")}
-              placeholder="Ej.: 250"
-              className={inputClass}
-            />
+            <div className="space-y-2">
+              {/* Lo que viaja al servidor es el campo oculto; el selector y el cuadro solo lo editan. */}
+              <input type="hidden" name="water_g" value={recipe.water} />
+              <select
+                value={customWater ? "otra" : recipe.water}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "otra") {
+                    setCustomWater(true);
+                    setRecipe((current) => ({
+                      ...current,
+                      water: isPresetWater(current.water) ? "" : current.water,
+                    }));
+                  } else {
+                    setCustomWater(false);
+                    setRecipe((current) => ({ ...current, water: value }));
+                  }
+                }}
+                className={inputClass}
+              >
+                <option value="">Sin indicar</option>
+                {WATER_PRESETS.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset} ml
+                  </option>
+                ))}
+                <option value="otra">Otra cantidad…</option>
+              </select>
+              {customWater ? (
+                <input
+                  aria-label="Cantidad de agua"
+                  inputMode="decimal"
+                  value={recipe.water}
+                  onChange={update("water")}
+                  placeholder="Ej.: 350 o 1,5 L"
+                  className={inputClass}
+                />
+              ) : null}
+            </div>
           </Field>
         </div>
         <p
