@@ -8,10 +8,10 @@ import {
   formatNumber,
   formatStars,
 } from "@/lib/bitacora/format";
-import type { BrewWithRelations } from "@/repositories/bitacora.repository";
+import type { BrewView } from "@/services/bitacora.service";
 
 interface BrewCardProps {
-  brew: BrewWithRelations;
+  brew: BrewView;
   /** En cuadernos compartidos solo se puede mirar. */
   readOnly?: boolean;
 }
@@ -43,6 +43,24 @@ export function BrewCard({ brew, readOnly = false }: BrewCardProps) {
           </p>
         ) : null}
       </div>
+
+      {brew.photoUrl ? (
+        <a
+          href={brew.photoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 block w-fit"
+        >
+          {/* URL firmada y temporal de Supabase Storage: no pasa por el optimizador de next/image. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={brew.photoUrl}
+            alt={`Foto de ${brew.product?.name ?? "la taza"}`}
+            loading="lazy"
+            className="h-40 w-full max-w-xs rounded-md object-cover"
+          />
+        </a>
+      ) : null}
 
       <p className="mt-2 text-sm text-stone-700 dark:text-stone-300">
         {[

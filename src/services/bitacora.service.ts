@@ -1,13 +1,18 @@
 import type { User } from "@supabase/supabase-js";
 import { z } from "zod";
+import { AppError } from "@/lib/api/response";
 import { KINDS, ROAST_LEVELS, TASTING_SCORES, TEA_TYPES } from "@/lib/bitacora/constants";
 import type { DbClient } from "@/repositories/notes.repository";
 import {
   deleteBrew,
+  getBrewPhotoPath,
   insertBrew,
   insertProduct,
   listBrews,
   listProducts,
+  removePhoto,
+  signPhotoUrls,
+  uploadPhoto,
   upsertTasting,
   type BrewRow,
   type BrewWithRelations,
@@ -149,24 +154,57 @@ export async function createProduct(db: DbClient, user: User, input: unknown): P
   });
 }
 
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+const PHOTO_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** Saca la foto del formulario (si hay) y la valida. El bucket vuelve a imponer tipo y tamaño. */
+function extractPhoto(input: unknown): { file: File; extension: string } | null {
+  if (typeof input !== "object" || input === null) return null;
+  const photo = (input as Record<string, unknown>).photo;
+  if (!(photo instanceof File) || photo.size === 0) return null;
+
+  const extension = PHOTO_EXTENSIONS[photo.type];
+  if (!extension) throw new AppError("VALIDATION_ERROR", "La foto debe ser JPG, PNG o WebP", 400);
+  if (photo.size > MAX_PHOTO_BYTES) throw new AppError("VALIDATION_ERROR", "La foto pesa más de 4 MB", 400);
+  return { file: photo, extension };
+}
+
 export async function logBrew(db: DbClient, user: User, input: unknown): Promise<BrewRow> {
   const parsed = logBrewSchema.parse(input);
+  const photo = extractPhoto(input);
 
-  const brew = await insertBrew(db, {
-    user_id: user.id,
-    product_id: parsed.product_id,
-    method: parsed.method ?? "Sin especificar",
-    dose_g: parsed.dose_g ?? null,
-    water_g: parsed.water_g ?? null,
-    water_temp_c: parsed.water_temp_c ?? null,
-    grind_setting: parsed.grind_setting ?? null,
-    steep_seconds: parsed.steep_seconds ?? null,
-    equipment: parsed.equipment ?? null,
-    water_notes: parsed.water_notes ?? null,
-    place: parsed.place ?? null,
-    rating: parsed.rating ?? null,
-    notes: parsed.notes ?? null,
-  });
+  const id = crypto.randomUUID();
+  const photoPath = photo ? `${user.id}/${id}.${photo.extension}` : null;
+  if (photo && photoPath) await uploadPhoto(db, photoPath, photo.file);
+
+  let brew: BrewRow;
+  try {
+    brew = await insertBrew(db, {
+      id,
+      user_id: user.id,
+      product_id: parsed.product_id,
+      method: parsed.method ?? "Sin especificar",
+      dose_g: parsed.dose_g ?? null,
+      water_g: parsed.water_g ?? null,
+      water_temp_c: parsed.water_temp_c ?? null,
+      grind_setting: parsed.grind_setting ?? null,
+      steep_seconds: parsed.steep_seconds ?? null,
+      equipment: parsed.equipment ?? null,
+      water_notes: parsed.water_notes ?? null,
+      place: parsed.place ?? null,
+      rating: parsed.rating ?? null,
+      notes: parsed.notes ?? null,
+      photo_path: photoPath,
+    });
+  } catch (error) {
+    // No dejar una foto huérfana si la taza no se pudo guardar.
+    if (photoPath) await removePhoto(db, photoPath).catch(() => undefined);
+    throw error;
+  }
 
   const tasting: TastingInsert = {
     user_id: user.id,
@@ -193,7 +231,23 @@ export async function logBrew(db: DbClient, user: User, input: unknown): Promise
 
 export async function removeBrew(db: DbClient, id: unknown): Promise<void> {
   const brewId = z.uuid().parse(id);
+  const photoPath = await getBrewPhotoPath(db, brewId);
+
   await deleteBrew(db, brewId);
+  if (photoPath) await removePhoto(db, photoPath).catch(() => undefined);
+}
+
+export type BrewView = BrewWithRelations & { photoUrl: string | null };
+
+/** Agrega a cada taza la URL firmada (temporal) de su foto. Si falla el firmado, se muestran sin foto. */
+export async function attachPhotoUrls(db: DbClient, brews: BrewWithRelations[]): Promise<BrewView[]> {
+  const paths = brews.flatMap((brew) => (brew.photo_path ? [brew.photo_path] : []));
+  const urls = await signPhotoUrls(db, paths).catch(() => new Map<string, string>());
+
+  return brews.map((brew) => ({
+    ...brew,
+    photoUrl: brew.photo_path ? (urls.get(brew.photo_path) ?? null) : null,
+  }));
 }
 
 export interface BitacoraOverview {

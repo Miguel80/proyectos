@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState, type ChangeEvent } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { logBrewAction } from "@/actions/bitacora.actions";
 import { buttonClass, Field, FormMessage, inputClass } from "@/components/ui";
 import {
@@ -74,6 +80,35 @@ function recipeFrom(last: LastRecipe | null): Recipe {
   };
 }
 
+const MAX_SIDE_PX = 1600;
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+/** Reduce y recomprime la foto (JPG) en el navegador; así una foto de celular pesa ~0,3-0,6 MB. */
+async function compressImage(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(
+      1,
+      MAX_SIDE_PX / Math.max(bitmap.width, bitmap.height),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const context = canvas.getContext("2d");
+    if (!context) return file;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.82),
+    );
+    if (!blob) return file;
+    return new File([blob], "foto.jpg", { type: "image/jpeg" });
+  } catch {
+    return file; // formato no decodificable en este navegador: se intenta con el original
+  }
+}
+
 function parseDecimal(value: string): number {
   return Number(value.trim().replace(",", "."));
 }
@@ -87,8 +122,53 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
     (products.length === 1 ? products[0] : undefined);
 
   const [productId, setProductId] = useState(initial?.id ?? "");
-  const [recipe, setRecipe] = useState<Recipe>(() => recipeFrom(initial?.last ?? null));
+  const [recipe, setRecipe] = useState<Recipe>(() =>
+    recipeFrom(initial?.last ?? null),
+  );
   const [prefilled, setPrefilled] = useState(Boolean(initial?.last));
+
+  const photoInput = useRef<HTMLInputElement>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+    };
+  }, [photoPreview]);
+
+  async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.target;
+    const original = input.files?.[0];
+    setPhotoError(null);
+    setPhotoPreview(null);
+    if (!original) return;
+
+    if (!original.type.startsWith("image/")) {
+      input.value = "";
+      setPhotoError("Elige una imagen (JPG, PNG o WebP).");
+      return;
+    }
+
+    const file = await compressImage(original);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      input.value = "";
+      setPhotoError("La foto es demasiado pesada. Prueba con otra.");
+      return;
+    }
+
+    // Reemplaza el archivo del input por la versión comprimida: es el que viaja con el formulario.
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+    setPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function clearPhoto() {
+    if (photoInput.current) photoInput.current.value = "";
+    setPhotoPreview(null);
+    setPhotoError(null);
+  }
 
   useEffect(() => {
     if (state?.ok) {
@@ -108,9 +188,10 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
     setPrefilled(Boolean(next?.last));
   }
 
-  const update = (key: keyof Recipe) => (event: ChangeEvent<HTMLInputElement>) => {
-    setRecipe((current) => ({ ...current, [key]: event.target.value }));
-  };
+  const update =
+    (key: keyof Recipe) => (event: ChangeEvent<HTMLInputElement>) => {
+      setRecipe((current) => ({ ...current, [key]: event.target.value }));
+    };
 
   const dose = parseDecimal(recipe.dose);
   const water = parseDecimal(recipe.water);
@@ -136,12 +217,18 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
               </option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {isKind(product.kind) ? KIND_LABEL[product.kind] : product.kind} · {product.name}
+                  {isKind(product.kind)
+                    ? KIND_LABEL[product.kind]
+                    : product.kind}{" "}
+                  · {product.name}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Método (opcional)" hint="Elige de la lista o escribe el tuyo">
+          <Field
+            label="Método (opcional)"
+            hint="Elige de la lista o escribe el tuyo"
+          >
             <input
               name="method"
               maxLength={60}
@@ -158,12 +245,57 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
             </datalist>
           </Field>
         </div>
-        <Field label="Lugar (opcional)" hint="Dónde la tomaste: en casa, nombre de la cafetería…">
-          <input name="place" maxLength={120} placeholder="Ej.: Café Sorrento, Viña" className={inputClass} />
+        <Field
+          label="Lugar (opcional)"
+          hint="Dónde la tomaste: en casa, nombre de la cafetería…"
+        >
+          <input
+            name="place"
+            maxLength={120}
+            placeholder="Ej.: Café Sorrento, Viña"
+            className={inputClass}
+          />
         </Field>
+        <Field
+          label="Foto (opcional)"
+          hint="Del café, del paquete o del lugar. Se reduce sola antes de subirla."
+        >
+          <input
+            ref={photoInput}
+            name="photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/*"
+            onChange={handlePhotoChange}
+            className={`${inputClass} file:mr-3 file:rounded file:border-0 file:bg-stone-100 file:px-3 file:py-1 file:text-sm dark:file:bg-stone-800`}
+          />
+        </Field>
+        {photoError ? (
+          <p role="alert" className="text-sm text-red-700 dark:text-red-300">
+            {photoError}
+          </p>
+        ) : null}
+        {photoPreview ? (
+          <div className="flex items-end gap-3">
+            {/* Vista previa local (blob:), no hay nada que optimizar. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={photoPreview}
+              alt="Vista previa de la foto"
+              className="h-28 rounded-md object-cover"
+            />
+            <button
+              type="button"
+              onClick={clearPhoto}
+              className="text-sm underline"
+            >
+              Quitar foto
+            </button>
+          </div>
+        ) : null}
         {prefilled ? (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">
-            Rellené la receta con tu última preparación de este producto. Ajusta lo que cambió.
+            Rellené la receta con tu última preparación de este producto. Ajusta
+            lo que cambió.
           </p>
         ) : null}
       </fieldset>
@@ -173,7 +305,8 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
           2 · Receta (opcional)
         </legend>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          Si probaste el café en otro lugar y no conoces las medidas, déjalo en blanco y pasa a la cata.
+          Si probaste el café en otro lugar y no conoces las medidas, déjalo en
+          blanco y pasa a la cata.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={`Cantidad de ${dryLabel} (gramos)`} hint="Opcional">
@@ -186,7 +319,10 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
               className={inputClass}
             />
           </Field>
-          <Field label="Cantidad de agua (gramos)" hint="Opcional · 1 ml de agua pesa 1 g">
+          <Field
+            label="Cantidad de agua (gramos)"
+            hint="Opcional · 1 ml de agua pesa 1 g"
+          >
             <input
               name="water_g"
               inputMode="decimal"
@@ -197,7 +333,10 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
             />
           </Field>
         </div>
-        <p aria-live="polite" className="text-sm text-stone-600 dark:text-stone-400">
+        <p
+          aria-live="polite"
+          className="text-sm text-stone-600 dark:text-stone-400"
+        >
           {ratio === null
             ? "Con café y agua calculo la proporción."
             : `Proporción: 1 de ${isTea ? "té" : "café"} por ${formatNumber(ratio)} de agua (1:${formatNumber(ratio)})`}
@@ -224,7 +363,9 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
           </Field>
         </div>
         <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          <summary className="cursor-pointer text-sm font-medium">Más detalles de la receta (opcional)</summary>
+          <summary className="cursor-pointer text-sm font-medium">
+            Más detalles de la receta (opcional)
+          </summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Molienda" hint="Ej.: 24 clicks, o 5,5 en el molino">
               <input
@@ -272,13 +413,22 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
           </select>
         </Field>
         <Field label="Notas" hint="Lo que quieras recordar de esta taza">
-          <textarea name="notes" rows={2} maxLength={2000} className={inputClass} />
+          <textarea
+            name="notes"
+            rows={2}
+            maxLength={2000}
+            className={inputClass}
+          />
         </Field>
 
         <details className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
-          <summary className="cursor-pointer text-sm font-medium">Cata detallada (opcional)</summary>
+          <summary className="cursor-pointer text-sm font-medium">
+            Cata detallada (opcional)
+          </summary>
           <div className="mt-4 space-y-4">
-            <p className="text-xs text-stone-500">Puntúa de 1 (bajo) a 5 (alto) lo que notaste.</p>
+            <p className="text-xs text-stone-500">
+              Puntúa de 1 (bajo) a 5 (alto) lo que notaste.
+            </p>
             <div className="grid gap-4 sm:grid-cols-4">
               {TASTING_SCORES.map(({ key, label }) => (
                 <Field key={key} label={label}>
@@ -293,11 +443,19 @@ export function BrewForm({ products, initialProductId }: BrewFormProps) {
                 </Field>
               ))}
             </div>
-            <Field label="Sabores que notaste" hint="Separados por coma: chocolate, caramelo, cítrico">
+            <Field
+              label="Sabores que notaste"
+              hint="Separados por coma: chocolate, caramelo, cítrico"
+            >
               <input name="descriptors" className={inputClass} />
             </Field>
             <Field label="Notas de cata">
-              <textarea name="tasting_notes" rows={2} maxLength={2000} className={inputClass} />
+              <textarea
+                name="tasting_notes"
+                rows={2}
+                maxLength={2000}
+                className={inputClass}
+              />
             </Field>
           </div>
         </details>

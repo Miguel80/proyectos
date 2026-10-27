@@ -27,6 +27,7 @@ export type Database = {
           steep_seconds: number | null;
           user_id: string;
           water_g: number | null;
+          photo_path: string | null;
           place: string | null;
           water_notes: string | null;
           water_temp_c: number | null;
@@ -46,6 +47,7 @@ export type Database = {
           steep_seconds?: number | null;
           user_id?: string;
           water_g?: number | null;
+          photo_path?: string | null;
           place?: string | null;
           water_notes?: string | null;
           water_temp_c?: number | null;
@@ -65,6 +67,7 @@ export type Database = {
           steep_seconds?: number | null;
           user_id?: string;
           water_g?: number | null;
+          photo_path?: string | null;
           place?: string | null;
           water_notes?: string | null;
           water_temp_c?: number | null;

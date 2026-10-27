@@ -4,7 +4,7 @@ import { buttonClass, cardClass } from "@/components/ui";
 import { formatDateTime } from "@/lib/bitacora/format";
 import { requireUserOrRedirect } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getOverview } from "@/services/bitacora.service";
+import { attachPhotoUrls, getOverview } from "@/services/bitacora.service";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Preparaciones · Bitácora Sensorial" };
@@ -12,7 +12,8 @@ export const metadata = { title: "Preparaciones · Bitácora Sensorial" };
 export default async function BitacoraPage() {
   const user = await requireUserOrRedirect();
   const db = await createClient();
-  const { brews, stats } = await getOverview(db, user.id);
+  const { brews: rawBrews, stats } = await getOverview(db, user.id);
+  const brews = await attachPhotoUrls(db, rawBrews);
 
   return (
     <main className="space-y-6">

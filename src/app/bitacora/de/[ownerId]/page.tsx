@@ -5,7 +5,7 @@ import { BrewCard } from "@/components/brew-card";
 import { cardClass } from "@/components/ui";
 import { requireUserOrRedirect } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getOverview } from "@/services/bitacora.service";
+import { attachPhotoUrls, getOverview } from "@/services/bitacora.service";
 import { findAcceptedShare } from "@/services/sharing.service";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,8 @@ export default async function SharedNotebookPage({
   const share = await findAcceptedShare(db, user, parsed.data);
   if (!share) notFound();
 
-  const { brews } = await getOverview(db, parsed.data);
+  const overview = await getOverview(db, parsed.data);
+  const brews = await attachPhotoUrls(db, overview.brews);
 
   return (
     <main className="space-y-6">

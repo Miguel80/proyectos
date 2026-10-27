@@ -126,3 +126,44 @@ export async function deleteShare(db: DbClient, id: string): Promise<void> {
 
   if (error) throw dbError("No se pudo eliminar la invitación", error.code);
 }
+
+export async function getBrewPhotoPath(db: DbClient, id: string): Promise<string | null> {
+  const { data, error } = await db.from("bitacora_brews").select("photo_path").eq("id", id).maybeSingle();
+
+  if (error) throw dbError("No se pudo leer la preparación", error.code);
+  return data?.photo_path ?? null;
+}
+
+// --- Fotos (Supabase Storage, bucket privado) -----------------------------------------------
+
+const PHOTO_BUCKET = "bitacora-photos";
+const SIGNED_URL_SECONDS = 60 * 60;
+
+export async function uploadPhoto(db: DbClient, path: string, file: File): Promise<void> {
+  const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+
+  if (error) throw new AppError("STORAGE_ERROR", "No se pudo subir la foto", 500, error.message);
+}
+
+export async function removePhoto(db: DbClient, path: string): Promise<void> {
+  const { error } = await db.storage.from(PHOTO_BUCKET).remove([path]);
+
+  if (error) throw new AppError("STORAGE_ERROR", "No se pudo borrar la foto", 500, error.message);
+}
+
+/** Mapa ruta -> URL firmada temporal. Las rutas que no se puedan firmar quedan fuera. */
+export async function signPhotoUrls(db: DbClient, paths: string[]): Promise<Map<string, string>> {
+  const urls = new Map<string, string>();
+  if (paths.length === 0) return urls;
+
+  const { data, error } = await db.storage.from(PHOTO_BUCKET).createSignedUrls(paths, SIGNED_URL_SECONDS);
+  if (error) throw new AppError("STORAGE_ERROR", "No se pudieron leer las fotos", 500, error.message);
+
+  for (const item of data) {
+    if (item.path && item.signedUrl && !item.error) urls.set(item.path, item.signedUrl);
+  }
+  return urls;
+}
