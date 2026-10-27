@@ -122,6 +122,14 @@ function toLocalInputValue(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/** "250", "250 ml" o "1,5 L" -> ml (igual que en el servidor, para la proporción en vivo). */
+function parseWaterMl(value: string): number {
+  const match = /^([\d.,]+)\s*(l|lt|lts|litro|litros|ml)?$/i.exec(value.trim());
+  if (!match) return Number.NaN;
+  const amount = Number((match[1] ?? "").replace(",", "."));
+  return (match[2] ?? "ml").toLowerCase() === "ml" ? amount : amount * 1000;
+}
+
 function parseDecimal(value: string): number {
   return Number(value.trim().replace(",", "."));
 }
@@ -239,7 +247,7 @@ export function BrewForm({
     };
 
   const dose = parseDecimal(recipe.dose);
-  const water = parseDecimal(recipe.water);
+  const water = parseWaterMl(recipe.water);
   const ratio = dose > 0 && water > 0 ? water / dose : null;
 
   return (
@@ -411,8 +419,8 @@ export function BrewForm({
             />
           </Field>
           <Field
-            label="Cantidad de agua (gramos)"
-            hint="Opcional · 1 ml de agua pesa 1 g"
+            label="Cantidad de agua (ml)"
+            hint="Opcional · en ml; también puedes escribir 1,5 L"
           >
             <input
               name="water_g"

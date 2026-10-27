@@ -7,6 +7,7 @@ import {
   formatDuration,
   formatNumber,
   formatStars,
+  formatVolume,
 } from "@/lib/bitacora/format";
 import type { BrewView } from "@/services/bitacora.service";
 
@@ -66,7 +67,7 @@ export function BrewCard({ brew, readOnly = false }: BrewCardProps) {
         {[
           brew.method === "Sin especificar" ? null : brew.method,
           brew.dose_g !== null && brew.water_g !== null
-            ? `${formatNumber(brew.dose_g)} g de ${brew.product?.kind === "tea" ? "té" : "café"} + ${formatNumber(brew.water_g)} g de agua`
+            ? `${formatNumber(brew.dose_g)} g de ${brew.product?.kind === "tea" ? "té" : "café"} + ${formatVolume(brew.water_g)} de agua`
             : null,
           brew.ratio !== null ? `1:${formatNumber(brew.ratio)}` : null,
           brew.water_temp_c !== null

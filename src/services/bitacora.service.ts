@@ -62,6 +62,19 @@ const toSeconds = (value: unknown): number | undefined => {
   return Number(raw.replace(",", "."));
 };
 
+/** Agua: acepta ml ("250", "250 ml") o litros ("1,5 L", "1.5 lt"); se guarda en ml. */
+const toMilliliters = (value: unknown): number | undefined => {
+  const cleaned = blankToUndefined(value);
+  if (cleaned === undefined) return undefined;
+  const match = /^([\d.,]+)\s*(l|lt|lts|litro|litros|ml)?$/i.exec(
+    String(cleaned).trim(),
+  );
+  if (!match) return Number.NaN;
+  const amount = Number((match[1] ?? "").replace(",", "."));
+  const unit = (match[2] ?? "ml").toLowerCase();
+  return unit === "ml" ? amount : amount * 1000;
+};
+
 const number = (schema: z.ZodNumber) =>
   z.preprocess(toNumber, schema.optional());
 
@@ -113,7 +126,10 @@ export const logBrewSchema = z.object({
   product_id: z.uuid({ error: "Elige un producto" }),
   method: text(60),
   dose_g: number(z.number().positive().max(9999)),
-  water_g: number(z.number().positive().max(99999)),
+  water_g: z.preprocess(
+    toMilliliters,
+    z.number().positive().max(99999).optional(),
+  ),
   water_temp_c: number(z.number().min(0).max(100)),
   grind_setting: text(60),
   steep_seconds: duration,
